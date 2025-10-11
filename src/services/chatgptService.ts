@@ -140,11 +140,12 @@ IMPORTANTE: Responde ÚNICAMENTE con el formato mostrado arriba, reemplazando lo
             const cost = this.calculateCost(promptTokens, completionTokens, this.settings.model);
 
             // Guardar registro de uso
+            const currentUser = authService.getCurrentUser();
             const usageRecord: UsageRecord = {
               id: Date.now().toString(),
               timestamp: new Date().toISOString(),
               model: this.settings.model,
-              imageName: imageData.name,
+              imageName: `${currentUser?.username || 'unknown'}_${imageData.name}`,
               promptTokens,
               completionTokens,
               totalTokens,
@@ -171,11 +172,12 @@ IMPORTANTE: Responde ÚNICAMENTE con el formato mostrado arriba, reemplazando lo
       console.error('Error generando descripción:', error);
       
       // Guardar registro de error
+      const currentUser = authService.getCurrentUser();
       const errorRecord: UsageRecord = {
         id: Date.now().toString(),
         timestamp: new Date().toISOString(),
         model: this.settings.model,
-        imageName: imageData.name,
+        imageName: `${currentUser?.username || 'unknown'}_${imageData.name}`,
         promptTokens: 0,
         completionTokens: 0,
         totalTokens: 0,

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, BarChart3, DollarSign, Zap, Clock, CheckCircle, XCircle, Trash2, Download, Filter, X } from 'lucide-react';
+import { ArrowLeft, BarChart3, DollarSign, Zap, Clock, CheckCircle, XCircle, Trash2, Download, Filter, X, Users, User } from 'lucide-react';
 import { UsageRecord, UsageStats } from '../types';
+import { authService } from '../services/authService';
 
 interface UsageHistoryProps {
   onBack: () => void;
@@ -23,6 +24,8 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
   const [filteredRecords, setFilteredRecords] = useState<UsageRecord[]>([]);
   const [stats, setStats] = useState<UsageStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentUser] = useState(authService.getCurrentUser());
+  const [isRoot] = useState(authService.isRoot());
   
   // Filtros
   const [dateFilter, setDateFilter] = useState<{
@@ -47,9 +50,22 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
     try {
       const stored = localStorage.getItem('chatgpt-usage-history');
       if (stored) {
-        const records: UsageRecord[] = JSON.parse(stored);
-        setUsageRecords(records);
-        calculateStats(records);
+        const allRecords: UsageRecord[] = JSON.parse(stored);
+        
+        // Filtrar registros según el tipo de usuario
+        let filteredRecords: UsageRecord[];
+        if (isRoot) {
+          // Root ve todos los registros
+          filteredRecords = allRecords;
+        } else {
+          // Usuario normal solo ve sus propios registros
+          filteredRecords = allRecords.filter(record => 
+            record.imageName.includes(currentUser?.username || '')
+          );
+        }
+        
+        setUsageRecords(filteredRecords);
+        calculateStats(filteredRecords);
       }
     } catch (error) {
       console.error('Error loading usage history:', error);
@@ -208,9 +224,13 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
               <ArrowLeft className="w-5 h-5 text-gray-600" />
             </button>
             <div className="flex items-center space-x-3">
-              <BarChart3 className="w-6 h-6 text-blue-600" />
+              {isRoot ? (
+                <Users className="w-6 h-6 text-blue-600" />
+              ) : (
+                <User className="w-6 h-6 text-blue-600" />
+              )}
               <h1 className="text-xl font-semibold text-gray-900">
-                Historial de Uso - ChatGPT
+                {isRoot ? 'Historial de Uso - ChatGPT (Administrador)' : 'Mi Consumo - ChatGPT'}
               </h1>
             </div>
           </div>
@@ -332,12 +352,19 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
       <div className="flex-1 overflow-auto p-6">
         {usageRecords.length === 0 ? (
           <div className="text-center py-12">
-            <BarChart3 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            {isRoot ? (
+              <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            ) : (
+              <User className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            )}
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No hay historial de uso
+              {isRoot ? 'No hay historial de uso del sistema' : 'No tienes historial de uso'}
             </h3>
             <p className="text-gray-600">
-              El historial de uso de ChatGPT aparecerá aquí una vez que comiences a generar descripciones.
+              {isRoot 
+                ? 'El historial de uso de ChatGPT de todos los usuarios aparecerá aquí una vez que comiencen a generar descripciones.'
+                : 'Tu historial de uso de ChatGPT aparecerá aquí una vez que comiences a generar descripciones.'
+              }
             </p>
           </div>
         ) : (
@@ -348,7 +375,9 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
                 <div className="bg-white p-4 rounded-lg border border-gray-200">
                   <div className="flex items-center space-x-2">
                     <Zap className="w-5 h-5 text-blue-600" />
-                    <span className="text-sm font-medium text-gray-600">Total Solicitudes</span>
+                    <span className="text-sm font-medium text-gray-600">
+                      {isRoot ? 'Total Solicitudes' : 'Mis Solicitudes'}
+                    </span>
                   </div>
                   <p className="text-2xl font-bold text-gray-900 mt-1">
                     {formatNumber(stats.totalRequests)}
@@ -358,7 +387,9 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
                 <div className="bg-white p-4 rounded-lg border border-gray-200">
                   <div className="flex items-center space-x-2">
                     <BarChart3 className="w-5 h-5 text-green-600" />
-                    <span className="text-sm font-medium text-gray-600">Total Tokens</span>
+                    <span className="text-sm font-medium text-gray-600">
+                      {isRoot ? 'Total Tokens' : 'Mis Tokens'}
+                    </span>
                   </div>
                   <p className="text-2xl font-bold text-gray-900 mt-1">
                     {formatNumber(stats.totalTokens)}
@@ -368,7 +399,9 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
                 <div className="bg-white p-4 rounded-lg border border-gray-200">
                   <div className="flex items-center space-x-2">
                     <DollarSign className="w-5 h-5 text-yellow-600" />
-                    <span className="text-sm font-medium text-gray-600">Costo Total</span>
+                    <span className="text-sm font-medium text-gray-600">
+                      {isRoot ? 'Costo Total' : 'Mi Costo'}
+                    </span>
                   </div>
                   <p className="text-2xl font-bold text-gray-900 mt-1">
                     {formatCurrency(stats.totalCost)}
@@ -378,7 +411,9 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
                 <div className="bg-white p-4 rounded-lg border border-gray-200">
                   <div className="flex items-center space-x-2">
                     <Clock className="w-5 h-5 text-purple-600" />
-                    <span className="text-sm font-medium text-gray-600">Modelo Más Usado</span>
+                    <span className="text-sm font-medium text-gray-600">
+                      {isRoot ? 'Modelo Más Usado' : 'Mi Modelo Favorito'}
+                    </span>
                   </div>
                   <p className="text-lg font-bold text-gray-900 mt-1">
                     {stats.mostUsedModel}
@@ -391,8 +426,13 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200">
                 <h2 className="text-lg font-medium text-gray-900">
-                  Registro Detallado
+                  {isRoot ? 'Registro Detallado (Todos los Usuarios)' : 'Mi Registro de Uso'}
                 </h2>
+                {isRoot && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    Vista completa del consumo de todos los usuarios del sistema
+                  </p>
+                )}
               </div>
               
               <div className="overflow-x-auto">
@@ -402,6 +442,11 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Fecha
                       </th>
+                      {isRoot && (
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Usuario
+                        </th>
+                      )}
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Modelo
                       </th>
@@ -427,6 +472,13 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {new Date(record.timestamp).toLocaleString()}
                           </td>
+                          {isRoot && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                {record.imageName.split('_')[0] || 'Desconocido'}
+                              </span>
+                            </td>
+                          )}
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                               {record.model}
