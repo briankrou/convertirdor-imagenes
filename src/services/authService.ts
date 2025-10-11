@@ -122,7 +122,7 @@ class AuthService {
     return [...this.users];
   }
 
-  public async createUser(username: string, password: string): Promise<{ success: boolean; error?: string }> {
+  public async createUser(username: string, password: string, isAdmin: boolean = false): Promise<{ success: boolean; error?: string }> {
     if (!this.isRoot()) {
       return { success: false, error: 'Solo el usuario root puede crear nuevos usuarios' };
     }
@@ -144,7 +144,7 @@ class AuthService {
         id: `user-${Date.now()}`,
         username,
         password,
-        isRoot: false,
+        isRoot: isAdmin,
         createdAt: new Date().toISOString()
       };
 

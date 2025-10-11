@@ -17,6 +17,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
   // Create user form
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [newUserRole, setNewUserRole] = useState<'user' | 'admin'>('user');
   const [showNewPassword, setShowNewPassword] = useState(false);
 
   // Change password form
@@ -55,12 +56,13 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
     }
 
     try {
-      const result = await authService.createUser(newUsername.trim(), newPassword);
+      const result = await authService.createUser(newUsername.trim(), newPassword, newUserRole === 'admin');
       
       if (result.success) {
-        setMessage({ type: 'success', text: 'Usuario creado exitosamente' });
+        setMessage({ type: 'success', text: `Usuario ${newUserRole === 'admin' ? 'administrador' : 'normal'} creado exitosamente` });
         setNewUsername('');
         setNewPassword('');
+        setNewUserRole('user');
         setShowCreateForm(false);
         loadUsers();
       } else {
@@ -248,6 +250,26 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
                   </button>
                 </div>
               </div>
+              <div>
+                <label htmlFor="new-user-role" className="block text-sm font-medium text-gray-700 mb-1">
+                  Perfil de Usuario
+                </label>
+                <select
+                  id="new-user-role"
+                  value={newUserRole}
+                  onChange={(e) => setNewUserRole(e.target.value as 'user' | 'admin')}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                >
+                  <option value="user">Usuario Normal</option>
+                  <option value="admin">Administrador</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {newUserRole === 'admin' 
+                    ? 'Los administradores pueden gestionar usuarios y ver estadísticas completas'
+                    : 'Los usuarios normales solo pueden ver su propio consumo'
+                  }
+                </p>
+              </div>
               <div className="flex space-x-2">
                 <button
                   type="submit"
@@ -430,7 +452,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
                           ? 'bg-red-100 text-red-800' 
                           : 'bg-gray-100 text-gray-800'
                       }`}>
-                        {user.isRoot ? 'Root' : 'Usuario'}
+                        {user.isRoot ? (user.username === 'root' ? 'Root' : 'Administrador') : 'Usuario'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
