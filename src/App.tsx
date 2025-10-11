@@ -330,6 +330,7 @@ function App() {
     }
 
     setIsConverting(true);
+    setIsGeneratingDescriptions(true);
     const newConvertedImages: { blob: Blob; filename: string }[] = [];
     const newDescriptions: ImageDescription[] = [];
 
@@ -344,7 +345,7 @@ function App() {
         newConvertedImages.push({ blob: convertedBlob, filename });
 
         // Generar descripción si ChatGPT está habilitado
-        if (chatGPTSettings.enabled && chatGPTSettings.apiKey) {
+        if (chatGPTSettings.enabled && chatGPTSettings.apiKey && chatGPTSettings.apiKey.trim()) {
           try {
             const chatGPTService = new ChatGPTService(chatGPTSettings);
             const response = await chatGPTService.generateImageDescription(
@@ -362,10 +363,27 @@ function App() {
               caption: response.caption,
               altText: response.altText
             });
+            
+            addNotification({
+              type: 'info',
+              title: 'Descripción generada',
+              message: `Descripción generada para: ${image.name}`
+            });
           } catch (error) {
             console.error(`Error generando descripción para ${image.name}:`, error);
+            addNotification({
+              type: 'warning',
+              title: 'Error en descripción',
+              message: `No se pudo generar descripción para: ${image.name} - ${error instanceof Error ? error.message : 'Error desconocido'}`
+            });
             // Continuar sin descripción si falla
           }
+        } else if (chatGPTSettings.enabled && (!chatGPTSettings.apiKey || !chatGPTSettings.apiKey.trim())) {
+          addNotification({
+            type: 'warning',
+            title: 'ChatGPT no configurado',
+            message: `ChatGPT está habilitado pero no hay API key configurada para: ${image.name}`
+          });
         }
 
         addNotification({
@@ -393,8 +411,9 @@ function App() {
       });
     } finally {
       setIsConverting(false);
+      setIsGeneratingDescriptions(false);
     }
-  }, [images, settings, chatGPTSettings, addNotification]);
+  }, [images, settings, chatGPTSettings, promptSettings, addNotification]);
 
   // Función auxiliar para convertir una imagen a Blob
   const convertSingleImageToBlob = async (image: ImageData, settings: ConversionSettings): Promise<Blob> => {

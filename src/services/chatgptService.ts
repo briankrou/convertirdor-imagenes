@@ -1,4 +1,5 @@
 import { ChatGPTSettings, ImageData, PromptSettings, UsageRecord } from '../types';
+import { authService } from './authService';
 
 export interface ChatGPTResponse {
   title: string;
@@ -50,13 +51,22 @@ export class ChatGPTService {
   }
 
   async generateImageDescription(imageData: ImageData, productDescription?: string, namePrefix?: string, promptSettings?: PromptSettings): Promise<ChatGPTResponse> {
+    console.log('🔍 Iniciando generación de descripción para:', imageData.name);
+    console.log('🔧 Configuración ChatGPT:', {
+      enabled: this.settings.enabled,
+      hasApiKey: !!this.settings.apiKey,
+      model: this.settings.model
+    });
+
     if (!this.settings.enabled || !this.settings.apiKey) {
       throw new Error('ChatGPT no está configurado o habilitado');
     }
 
     try {
       // Convertir la imagen a base64 para enviarla a la API
+      console.log('🖼️ Convirtiendo imagen a base64...');
       const base64Image = await this.convertImageToBase64(imageData.url);
+      console.log('✅ Imagen convertida a base64, tamaño:', base64Image.length, 'caracteres');
       
       // Usar prompts personalizados o predeterminados
       const prompts = promptSettings?.useCustomPrompts ? promptSettings : {
@@ -90,6 +100,7 @@ IMPORTANTE: Responde ÚNICAMENTE con el formato mostrado arriba, reemplazando lo
         prompt += `\n\nUsa esta información de contexto para generar contenido más preciso, pero enfócate en describir específicamente lo que ves en esta imagen particular.`;
       }
 
+      console.log('🚀 Enviando solicitud a OpenAI API...');
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -120,17 +131,22 @@ IMPORTANTE: Responde ÚNICAMENTE con el formato mostrado arriba, reemplazando lo
         })
       });
 
+      console.log('📡 Respuesta recibida, status:', response.status);
+      
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('❌ Error de API:', errorData);
         throw new Error(`Error de API: ${errorData.error?.message || 'Error desconocido'}`);
       }
 
-            const data = await response.json();
-            const content = data.choices[0]?.message?.content;
+      const data = await response.json();
+      console.log('✅ Datos recibidos de OpenAI:', data);
+      const content = data.choices[0]?.message?.content;
+      console.log('📝 Contenido de la respuesta:', content);
 
-            if (!content) {
-              throw new Error('No se recibió respuesta de ChatGPT');
-            }
+      if (!content) {
+        throw new Error('No se recibió respuesta de ChatGPT');
+      }
 
             // Extraer información de uso de la respuesta
             const usage = data.usage;
@@ -156,7 +172,9 @@ IMPORTANTE: Responde ÚNICAMENTE con el formato mostrado arriba, reemplazando lo
 
             // Intentar parsear el JSON de la respuesta
             try {
+              console.log('🔍 Intentando parsear como JSON...');
               const parsedResponse = JSON.parse(content);
+              console.log('✅ Parseado como JSON exitosamente:', parsedResponse);
               return {
                 title: parsedResponse.title || 'Título no disponible',
                 description: parsedResponse.description || 'Descripción no disponible',
@@ -164,8 +182,11 @@ IMPORTANTE: Responde ÚNICAMENTE con el formato mostrado arriba, reemplazando lo
                 altText: parsedResponse.altText || 'Texto alternativo no disponible'
               };
             } catch (parseError) {
+              console.log('⚠️ No es JSON válido, parseando como texto...');
               // Si no es JSON válido, extraer información del texto
-              return this.parseTextResponse(content);
+              const result = this.parseTextResponse(content);
+              console.log('✅ Parseado como texto:', result);
+              return result;
             }
 
     } catch (error) {
@@ -266,6 +287,51 @@ IMPORTANTE: Responde ÚNICAMENTE con el formato mostrado arriba, reemplazando lo
       return response.ok;
     } catch (error) {
       console.error('Error probando conexión:', error);
+      return false;
+    }
+  }
+
+  async testImageAnalysis(imageData: ImageData): Promise<boolean> {
+    if (!this.settings.enabled || !this.settings.apiKey) {
+      return false;
+    }
+
+    try {
+      const base64Image = await this.convertImageToBase64(imageData.url);
+      
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.settings.apiKey}`
+        },
+        body: JSON.stringify({
+          model: this.settings.model,
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: 'Describe brevemente lo que ves en esta imagen.'
+                },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: `data:image/jpeg;base64,${base64Image}`
+                  }
+                }
+              ]
+            }
+          ],
+          max_tokens: 100,
+          temperature: 0.7
+        })
+      });
+
+      return response.ok;
+    } catch (error) {
+      console.error('Error probando análisis de imagen:', error);
       return false;
     }
   }
