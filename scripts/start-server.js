@@ -24,13 +24,17 @@ const HOST = process.env.HOST || '0.0.0.0';
 const isProduction = process.env.NODE_ENV === 'production';
 const isEasyPanel = process.env.EASYPANEL === 'true' || process.env.PORT;
 
+// Para EasyPanel, usar el puerto que asigna automáticamente
+const serverPort = isEasyPanel ? (process.env.PORT || 3000) : 3000;
+
 console.log('🚀 Iniciando servidor de producción...');
 console.log(`📋 Configuración:`);
-console.log(`   Puerto: ${PORT}`);
+console.log(`   Puerto: ${serverPort}`);
 console.log(`   Host: ${HOST}`);
 console.log(`   Modo: ${isProduction ? 'Producción' : 'Desarrollo'}`);
 console.log(`   Plataforma: ${isEasyPanel ? 'EasyPanel' : 'Local'}`);
 console.log(`   Servidor: Vite Preview`);
+console.log(`   URL esperada: http://dbkoko_convertidor-imagenes:80/`);
 console.log('');
 
 // Verificar que el directorio dist existe
@@ -48,7 +52,7 @@ const viteProcess = spawn('npx', [
   'vite',
   'preview',
   '--host', HOST,
-  '--port', PORT.toString()
+  '--port', serverPort.toString()
 ], {
   stdio: 'inherit',
   shell: true

@@ -13,6 +13,7 @@
     "start:vite": "vite preview --host 0.0.0.0 --port 3000",
     "dev:vite": "vite --host localhost --port 5173",
     "start:easypanel": "node scripts/easypanel-start.js",
+    "start:proxy": "node scripts/easypanel-proxy.js",
     "config": "node scripts/config.js",
     "config:example": "node -e \"require('./scripts/config.js').generateEnvExample()\"",
     "env:check": "node -e \"const config = require('./scripts/config.js').loadEnvFile(); console.log('Variables cargadas:', Object.keys(config).length);\"",
