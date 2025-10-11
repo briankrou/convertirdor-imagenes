@@ -1,0 +1,27 @@
+{
+  "userSettings": {
+    "root": {
+      "username": "root",
+      "conversionSettings": {
+        "format": "png",
+        "quality": 90,
+        "imageNamePrefix": "imagen",
+        "sdkSuffix": "A5455",
+        "productDescription": ""
+      },
+      "chatGPTSettings": {
+        "apiKey": "",
+        "model": "gpt-4o",
+        "enabled": false
+      },
+      "promptSettings": {
+        "titlePrompt": "Genera un título atractivo y descriptivo para esta imagen (máximo 60 caracteres). El título debe ser claro, conciso y que capture la esencia del producto mostrado.",
+        "descriptionPrompt": "Describe detalladamente lo que ves en esta imagen. Incluye características visuales, colores, materiales, estilo y cualquier detalle relevante del producto (2-3 oraciones).",
+        "captionPrompt": "Crea una leyenda corta y atractiva para esta imagen que resalte las características principales del producto (1 oración).",
+        "altTextPrompt": "Genera un texto alternativo descriptivo para accesibilidad que describa claramente el contenido de la imagen (máximo 125 caracteres).",
+        "useCustomPrompts": false
+      }
+    }
+  },
+  "lastUpdated": "2024-01-01T00:00:00.000Z"
+}

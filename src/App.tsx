@@ -49,46 +49,69 @@ function App() {
     isLoading: true
   });
 
-  // Cargar configuración y verificar autenticación al inicializar
+  // Función para cargar configuración del usuario actual
+  const loadConfiguration = useCallback(async () => {
+    try {
+      // Verificar autenticación
+      const auth = authService.getAuthState();
+      setAuthState(auth);
+      
+      if (auth.isAuthenticated && auth.currentUser) {
+        const username = auth.currentUser.username;
+        
+        const userConversionSettings = await databaseService.getUserConversionSettings(username);
+        const userChatGPTSettings = await databaseService.getUserChatGPTSettings(username);
+        const userPromptSettings = await databaseService.getUserPromptSettings(username);
+        
+        setSettings(userConversionSettings);
+        setChatGPTSettings(userChatGPTSettings);
+        setPromptSettings(userPromptSettings);
+        
+        addNotification({
+          type: 'success',
+          title: 'Configuración cargada',
+          message: `Se cargó la configuración de ${username} correctamente`
+        });
+      }
+    } catch (error) {
+      console.error('Error loading configuration:', error);
+      addNotification({
+        type: 'info',
+        title: 'Configuración inicial',
+        message: 'Se usará la configuración predeterminada'
+      });
+    }
+  }, []);
+
+  // Efecto para cargar configuración cuando el usuario está autenticado
   useEffect(() => {
-    const loadConfiguration = async () => {
+    if (authState.isAuthenticated && authState.currentUser) {
+      loadConfiguration();
+    }
+  }, [authState.isAuthenticated, authState.currentUser?.username]);
+
+  // Efecto para inicializar la aplicación
+  useEffect(() => {
+    const initializeApp = async () => {
       try {
         setIsLoading(true);
+        await databaseService.initialize();
         
         // Verificar autenticación
         const auth = authService.getAuthState();
         setAuthState(auth);
         
         if (auth.isAuthenticated && auth.currentUser) {
-          const username = auth.currentUser.username;
-          
-          const userConversionSettings = await databaseService.getUserConversionSettings(username);
-          const userChatGPTSettings = await databaseService.getUserChatGPTSettings(username);
-          const userPromptSettings = await databaseService.getUserPromptSettings(username);
-          
-          setSettings(userConversionSettings);
-          setChatGPTSettings(userChatGPTSettings);
-          setPromptSettings(userPromptSettings);
-          
-          addNotification({
-            type: 'success',
-            title: 'Configuración cargada',
-            message: `Se cargó la configuración de ${username} correctamente`
-          });
+          await loadConfiguration();
         }
       } catch (error) {
-        console.error('Error loading configuration:', error);
-        addNotification({
-          type: 'info',
-          title: 'Configuración inicial',
-          message: 'Se usará la configuración predeterminada'
-        });
+        console.error('Error initializing app:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadConfiguration();
+    initializeApp();
   }, []);
 
   // Función para guardar configuración de conversión
@@ -275,9 +298,18 @@ function App() {
       title: 'Bienvenido',
       message: `Hola ${auth.currentUser?.username}!`
     });
-  }, [addNotification]);
+    // Recargar configuración del usuario
+    loadConfiguration();
+  }, [addNotification, loadConfiguration]);
 
   const handleLogout = useCallback(() => {
+    // Limpiar todas las imágenes y estados relacionados
+    setImages([]);
+    setImageDescriptions([]);
+    setConvertedImages([]);
+    setIsGeneratingDescriptions(false);
+    
+    // Cerrar sesión
     authService.logout();
     setAuthState({
       isAuthenticated: false,
@@ -285,10 +317,11 @@ function App() {
       isLoading: false
     });
     setCurrentPage('main');
+    
     addNotification({
       type: 'info',
       title: 'Sesión cerrada',
-      message: 'Has cerrado sesión correctamente'
+      message: 'Has cerrado sesión correctamente. Las imágenes han sido eliminadas.'
     });
   }, [addNotification]);
 
@@ -858,6 +891,7 @@ function App() {
         onLogout={handleLogout}
         currentUser={authState.currentUser}
       />
+      
       
       <div className="flex-1 flex overflow-hidden">
         <Sidebar 

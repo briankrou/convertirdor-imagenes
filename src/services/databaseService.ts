@@ -1,6 +1,5 @@
-import { Low } from 'lowdb';
-import { LocalStorage } from 'lowdb/browser';
-import { ConversionSettings, ChatGPTSettings, PromptSettings, UserSettings, UserChatGPTSettings, UserPromptSettings, UserConversionSettings } from '../types';
+import { UserSettings, UserChatGPTSettings, UserPromptSettings, UserConversionSettings } from '../types';
+import { DatabaseSync } from '../utils/dbSync';
 
 interface DatabaseSchema {
   userSettings: { [username: string]: UserSettings };
@@ -8,20 +7,15 @@ interface DatabaseSchema {
 }
 
 class DatabaseService {
-  private db: Low<DatabaseSchema> | null = null;
+  private data: DatabaseSchema | null = null;
   private isInitialized = false;
+  private readonly dbPath = './src/db/db.json';
 
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
     try {
-      const adapter = new LocalStorage<DatabaseSchema>('image-converter-db');
-      this.db = new Low(adapter, {
-        userSettings: {},
-        lastUpdated: new Date().toISOString()
-      });
-
-      await this.db.read();
+      await this.loadData();
       this.isInitialized = true;
     } catch (error) {
       console.error('Error initializing database:', error);
@@ -33,6 +27,30 @@ class DatabaseService {
     if (!this.isInitialized) {
       await this.initialize();
     }
+  }
+
+  private async loadData(): Promise<void> {
+    try {
+      // Usar la utilidad de sincronización para cargar datos
+      this.data = await DatabaseSync.syncData();
+    } catch (error) {
+      console.error('Error loading data:', error);
+      // Si hay error al cargar, crear estructura por defecto
+      this.data = {
+        userSettings: {},
+        lastUpdated: new Date().toISOString()
+      };
+      await this.saveData();
+    }
+  }
+
+  private async saveData(): Promise<void> {
+    if (!this.data) return;
+    
+    this.data.lastUpdated = new Date().toISOString();
+    
+    // Guardar en localStorage usando la utilidad de sincronización
+    DatabaseSync.saveToLocalStorage(this.data);
   }
 
   private getDefaultUserSettings(username: string): UserSettings {
@@ -64,21 +82,19 @@ class DatabaseService {
   async getUserSettings(username: string): Promise<UserSettings> {
     await this.ensureInitialized();
     
-    if (!this.db!.data.userSettings[username]) {
-      this.db!.data.userSettings[username] = this.getDefaultUserSettings(username);
-      this.db!.data.lastUpdated = new Date().toISOString();
-      await this.db!.write();
+    if (!this.data!.userSettings[username]) {
+      this.data!.userSettings[username] = this.getDefaultUserSettings(username);
+      await this.saveData();
     }
     
-    return this.db!.data.userSettings[username];
+    return this.data!.userSettings[username];
   }
 
   // Save user settings
   async saveUserSettings(username: string, settings: UserSettings): Promise<void> {
     await this.ensureInitialized();
-    this.db!.data.userSettings[username] = settings;
-    this.db!.data.lastUpdated = new Date().toISOString();
-    await this.db!.write();
+    this.data!.userSettings[username] = settings;
+    await this.saveData();
   }
 
   // Get user conversion settings
@@ -123,37 +139,45 @@ class DatabaseService {
   // Clear user settings (reset to defaults)
   async clearUserSettings(username: string): Promise<void> {
     await this.ensureInitialized();
-    this.db!.data.userSettings[username] = this.getDefaultUserSettings(username);
-    this.db!.data.lastUpdated = new Date().toISOString();
-    await this.db!.write();
+    this.data!.userSettings[username] = this.getDefaultUserSettings(username);
+    await this.saveData();
   }
 
   // Delete user settings completely
   async deleteUserSettings(username: string): Promise<void> {
     await this.ensureInitialized();
-    delete this.db!.data.userSettings[username];
-    this.db!.data.lastUpdated = new Date().toISOString();
-    await this.db!.write();
+    delete this.data!.userSettings[username];
+    await this.saveData();
   }
 
   // Get all users with settings
   async getAllUsersWithSettings(): Promise<string[]> {
     await this.ensureInitialized();
-    return Object.keys(this.db!.data.userSettings);
+    return Object.keys(this.data!.userSettings);
   }
 
   // Clear all user data
   async clearAllUserData(): Promise<void> {
     await this.ensureInitialized();
-    this.db!.data.userSettings = {};
-    this.db!.data.lastUpdated = new Date().toISOString();
-    await this.db!.write();
+    this.data!.userSettings = {};
+    await this.saveData();
   }
 
   // Get last updated timestamp
   async getLastUpdated(): Promise<string> {
     await this.ensureInitialized();
-    return this.db!.data.lastUpdated;
+    return this.data!.lastUpdated;
+  }
+
+  // Export current data to file (for development)
+  exportToFile(): void {
+    DatabaseSync.exportToFile();
+  }
+
+  // Get current data for debugging
+  async getCurrentData(): Promise<DatabaseSchema> {
+    await this.ensureInitialized();
+    return this.data!;
   }
 
   // Legacy methods for backward compatibility (will be removed)
