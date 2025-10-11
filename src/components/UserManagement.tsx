@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Users, UserPlus, Trash2, Key, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
 import { User } from '../types';
 import { authService } from '../services/authService';
+import { Popup } from './Popup';
+import { usePopup } from '../hooks/usePopup';
 
 interface UserManagementProps {
   onBack: () => void;
@@ -13,6 +15,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showChangePasswordForm, setShowChangePasswordForm] = useState(false);
   const [currentUser] = useState(authService.getCurrentUser());
+  const { popupState, hidePopup, showConfirm, showAlert } = usePopup();
 
   // Create user form
   const [newUsername, setNewUsername] = useState('');
@@ -75,23 +78,30 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
   };
 
   const handleDeleteUser = async (userId: string, username: string) => {
-    if (!window.confirm(`¿Estás seguro de que quieres eliminar al usuario "${username}"?`)) {
-      return;
-    }
-
-    try {
-      const result = await authService.deleteUser(userId);
-      
-      if (result.success) {
-        setMessage({ type: 'success', text: 'Usuario eliminado exitosamente' });
-        loadUsers();
-      } else {
-        setMessage({ type: 'error', text: result.error || 'Error al eliminar usuario' });
+    showConfirm(
+      'Eliminar usuario',
+      `¿Estás seguro de que quieres eliminar al usuario "${username}"?`,
+      async () => {
+        try {
+          const result = await authService.deleteUser(userId);
+          
+          if (result.success) {
+            setMessage({ type: 'success', text: 'Usuario eliminado exitosamente' });
+            loadUsers();
+          } else {
+            setMessage({ type: 'error', text: result.error || 'Error al eliminar usuario' });
+          }
+        } catch (error) {
+          console.error('Error deleting user:', error);
+          setMessage({ type: 'error', text: 'Error interno del sistema' });
+        }
+      },
+      {
+        confirmText: 'Eliminar',
+        cancelText: 'Cancelar',
+        type: 'error'
       }
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      setMessage({ type: 'error', text: 'Error interno del sistema' });
-    }
+    );
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -479,6 +489,20 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
           </div>
         </div>
       </div>
+
+      {/* Popup */}
+      <Popup
+        isOpen={popupState.isOpen}
+        onClose={hidePopup}
+        title={popupState.title}
+        message={popupState.message}
+        type={popupState.type}
+        onConfirm={popupState.onConfirm}
+        onCancel={popupState.onCancel}
+        confirmText={popupState.confirmText}
+        cancelText={popupState.cancelText}
+        showButtons={popupState.showButtons}
+      />
     </div>
   );
 };

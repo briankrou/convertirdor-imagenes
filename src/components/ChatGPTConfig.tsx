@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Key, Brain, CheckCircle, XCircle, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { UserChatGPTSettings } from '../types';
+import { Popup } from './Popup';
+import { usePopup } from '../hooks/usePopup';
 
 interface ChatGPTConfigProps {
   settings: UserChatGPTSettings;
@@ -18,6 +20,7 @@ export const ChatGPTConfig: React.FC<ChatGPTConfigProps> = ({
   const [showApiKey, setShowApiKey] = useState(false);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const { popupState, hidePopup, showConfirm } = usePopup();
   const [isTestingImage, setIsTestingImage] = useState(false);
   const [imageTestResult, setImageTestResult] = useState<string>('');
 
@@ -59,9 +62,18 @@ export const ChatGPTConfig: React.FC<ChatGPTConfigProps> = ({
   };
 
   const handleClearSettings = () => {
-    if (window.confirm('¿Estás seguro de que quieres limpiar tu configuración de ChatGPT? Esta acción restablecerá todos los valores a los predeterminados.')) {
-      onClearSettings();
-    }
+    showConfirm(
+      'Limpiar configuración',
+      '¿Estás seguro de que quieres limpiar tu configuración de ChatGPT? Esta acción restablecerá todos los valores a los predeterminados.',
+      () => {
+        onClearSettings();
+      },
+      {
+        confirmText: 'Limpiar',
+        cancelText: 'Cancelar',
+        type: 'warning'
+      }
+    );
   };
 
   const handleApiKeyChange = (apiKey: string) => {
@@ -383,6 +395,20 @@ export const ChatGPTConfig: React.FC<ChatGPTConfigProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Popup */}
+      <Popup
+        isOpen={popupState.isOpen}
+        onClose={hidePopup}
+        title={popupState.title}
+        message={popupState.message}
+        type={popupState.type}
+        onConfirm={popupState.onConfirm}
+        onCancel={popupState.onCancel}
+        confirmText={popupState.confirmText}
+        cancelText={popupState.cancelText}
+        showButtons={popupState.showButtons}
+      />
     </div>
   );
 };

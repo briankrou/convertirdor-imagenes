@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ArrowLeft, FileText, RotateCcw, Save, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { UserPromptSettings } from '../types';
+import { Popup } from './Popup';
+import { usePopup } from '../hooks/usePopup';
 
 interface PromptConfigProps {
   settings: UserPromptSettings;
@@ -16,6 +18,7 @@ export const PromptConfig: React.FC<PromptConfigProps> = ({
   onBack
 }) => {
   const [showPreview, setShowPreview] = useState(false);
+  const { popupState, hidePopup, showConfirm } = usePopup();
 
   // Prompts predeterminados
   const defaultPrompts = {
@@ -50,9 +53,18 @@ export const PromptConfig: React.FC<PromptConfigProps> = ({
   };
 
   const handleClearSettings = () => {
-    if (window.confirm('¿Estás seguro de que quieres limpiar tu configuración de prompts? Esta acción restablecerá todos los valores a los predeterminados.')) {
-      onClearSettings();
-    }
+    showConfirm(
+      'Limpiar configuración',
+      '¿Estás seguro de que quieres limpiar tu configuración de prompts? Esta acción restablecerá todos los valores a los predeterminados.',
+      () => {
+        onClearSettings();
+      },
+      {
+        confirmText: 'Limpiar',
+        cancelText: 'Cancelar',
+        type: 'warning'
+      }
+    );
   };
 
   const getCurrentPrompts = () => {
@@ -289,6 +301,20 @@ export const PromptConfig: React.FC<PromptConfigProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Popup */}
+      <Popup
+        isOpen={popupState.isOpen}
+        onClose={hidePopup}
+        title={popupState.title}
+        message={popupState.message}
+        type={popupState.type}
+        onConfirm={popupState.onConfirm}
+        onCancel={popupState.onCancel}
+        confirmText={popupState.confirmText}
+        cancelText={popupState.cancelText}
+        showButtons={popupState.showButtons}
+      />
     </div>
   );
 };

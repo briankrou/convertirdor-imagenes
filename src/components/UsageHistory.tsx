@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, BarChart3, DollarSign, Zap, Clock, CheckCircle, XCircle, Trash2, Download, Filter, X, Users, User } from 'lucide-react';
 import { UsageRecord, UsageStats } from '../types';
 import { authService } from '../services/authService';
+import { Popup } from './Popup';
+import { usePopup } from '../hooks/usePopup';
 
 interface UsageHistoryProps {
   onBack: () => void;
@@ -23,6 +25,7 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser] = useState(authService.getCurrentUser());
   const [isRoot] = useState(authService.isRoot());
+  const { popupState, hidePopup, showConfirm, showAlert } = usePopup();
   
   // Filtros
   const [dateFilter, setDateFilter] = useState<{
@@ -33,6 +36,7 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
     endDate: ''
   });
   const [modelFilter, setModelFilter] = useState<string>('all');
+  const [userFilter, setUserFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
   const [showUserSummary, setShowUserSummary] = useState(false);
 
@@ -42,7 +46,7 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
 
   useEffect(() => {
     applyFilters();
-  }, [usageRecords, dateFilter, modelFilter]);
+  }, [usageRecords, dateFilter, modelFilter, userFilter]);
 
   const loadUsageHistory = () => {
     try {
@@ -114,6 +118,14 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
       filtered = filtered.filter(record => record.model === modelFilter);
     }
 
+    // Filtro por usuario (solo para administradores)
+    if (userFilter !== 'all' && isRoot) {
+      filtered = filtered.filter(record => {
+        const username = record.imageName.split('_')[0] || 'unknown';
+        return username === userFilter;
+      });
+    }
+
     // Filtro por fecha
     if (dateFilter.startDate) {
       const startDate = new Date(dateFilter.startDate);
@@ -174,18 +186,38 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
   const clearHistory = () => {
     if (isRoot) {
       // Administrador puede eliminar todo el historial
-      if (window.confirm('¿Estás seguro de que quieres eliminar TODO el historial de uso de TODOS los usuarios? Esta acción no se puede deshacer.')) {
-        localStorage.removeItem('chatgpt-usage-history');
-        localStorage.removeItem('chatgpt-usage-history-admin-backup');
-        setUsageRecords([]);
-        setFilteredRecords([]);
-        setStats(null);
-      }
+      showConfirm(
+        'Eliminar todo el historial',
+        '¿Estás seguro de que quieres eliminar TODO el historial de uso de TODOS los usuarios? Esta acción no se puede deshacer.',
+        () => {
+          localStorage.removeItem('chatgpt-usage-history');
+          localStorage.removeItem('chatgpt-usage-history-admin-backup');
+          setUsageRecords([]);
+          setFilteredRecords([]);
+          setStats(null);
+          showAlert('Historial eliminado', 'Todo el historial de uso ha sido eliminado correctamente.', 'success');
+        },
+        {
+          confirmText: 'Eliminar todo',
+          cancelText: 'Cancelar',
+          type: 'error'
+        }
+      );
     } else {
       // Usuario normal solo puede eliminar su propio historial
-      if (window.confirm('¿Estás seguro de que quieres eliminar tu historial de uso personal? Esta acción no se puede deshacer.')) {
-        clearUserHistory();
-      }
+      showConfirm(
+        'Eliminar mi historial',
+        '¿Estás seguro de que quieres eliminar tu historial de uso personal? Esta acción no se puede deshacer.',
+        () => {
+          clearUserHistory();
+          showAlert('Historial eliminado', 'Tu historial de uso personal ha sido eliminado correctamente.', 'success');
+        },
+        {
+          confirmText: 'Eliminar',
+          cancelText: 'Cancelar',
+          type: 'warning'
+        }
+      );
     }
   };
 
@@ -224,38 +256,49 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
   };
 
   const deleteUserRecord = (username: string) => {
-    if (window.confirm(`¿Estás seguro de que quieres eliminar todo el historial de uso de "${username}"? Esta acción no se puede deshacer.`)) {
-      try {
-        const stored = localStorage.getItem('chatgpt-usage-history');
-        const adminBackup = localStorage.getItem('chatgpt-usage-history-admin-backup');
-        
-        if (stored) {
-          const allRecords: UsageRecord[] = JSON.parse(stored);
+    showConfirm(
+      `Eliminar historial de ${username}`,
+      `¿Estás seguro de que quieres eliminar todo el historial de uso de "${username}"? Esta acción no se puede deshacer.`,
+      () => {
+        try {
+          const stored = localStorage.getItem('chatgpt-usage-history');
+          const adminBackup = localStorage.getItem('chatgpt-usage-history-admin-backup');
           
-          // Filtrar para mantener solo los registros de otros usuarios
-          const filteredRecords = allRecords.filter(record => 
-            !record.imageName.includes(`${username}_`)
-          );
+          if (stored) {
+            const allRecords: UsageRecord[] = JSON.parse(stored);
+            
+            // Filtrar para mantener solo los registros de otros usuarios
+            const filteredRecords = allRecords.filter(record => 
+              !record.imageName.includes(`${username}_`)
+            );
+            
+            // Guardar los registros filtrados
+            localStorage.setItem('chatgpt-usage-history', JSON.stringify(filteredRecords));
+          }
           
-          // Guardar los registros filtrados
-          localStorage.setItem('chatgpt-usage-history', JSON.stringify(filteredRecords));
+          // También actualizar el respaldo de administradores
+          if (adminBackup) {
+            const adminRecords: UsageRecord[] = JSON.parse(adminBackup);
+            const filteredAdminRecords = adminRecords.filter(record => 
+              !record.imageName.includes(`${username}_`)
+            );
+            localStorage.setItem('chatgpt-usage-history-admin-backup', JSON.stringify(filteredAdminRecords));
+          }
+          
+          // Recargar el historial
+          loadUsageHistory();
+          showAlert('Historial eliminado', `El historial de uso de "${username}" ha sido eliminado correctamente.`, 'success');
+        } catch (error) {
+          console.error('Error deleting user records:', error);
+          showAlert('Error', 'Hubo un error al eliminar el historial del usuario.', 'error');
         }
-        
-        // También actualizar el respaldo de administradores
-        if (adminBackup) {
-          const adminRecords: UsageRecord[] = JSON.parse(adminBackup);
-          const filteredAdminRecords = adminRecords.filter(record => 
-            !record.imageName.includes(`${username}_`)
-          );
-          localStorage.setItem('chatgpt-usage-history-admin-backup', JSON.stringify(filteredAdminRecords));
-        }
-        
-        // Recargar el historial
-        loadUsageHistory();
-      } catch (error) {
-        console.error('Error deleting user records:', error);
+      },
+      {
+        confirmText: 'Eliminar',
+        cancelText: 'Cancelar',
+        type: 'error'
       }
-    }
+    );
   };
 
   const toggleUserSummary = () => {
@@ -287,11 +330,17 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
   const clearFilters = () => {
     setDateFilter({ startDate: '', endDate: '' });
     setModelFilter('all');
+    setUserFilter('all');
   };
 
   const getUniqueModels = () => {
     const models = [...new Set(usageRecords.map(record => record.model))];
     return models.sort();
+  };
+
+  const getUniqueUsers = () => {
+    const users = [...new Set(usageRecords.map(record => record.imageName.split('_')[0] || 'unknown'))];
+    return users.sort();
   };
 
   const exportHistory = () => {
@@ -435,7 +484,7 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
             </button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Filtro por fecha de inicio */}
             <div>
               <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 mb-1">
@@ -483,16 +532,39 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
                 ))}
               </select>
             </div>
+
+            {/* Filtro por usuario - Solo para administradores */}
+            {isRoot && (
+              <div>
+                <label htmlFor="user-filter" className="block text-sm font-medium text-gray-700 mb-1">
+                  Usuario
+                </label>
+                <select
+                  id="user-filter"
+                  value={userFilter}
+                  onChange={(e) => setUserFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                >
+                  <option value="all">Todos los usuarios</option>
+                  {getUniqueUsers().map(user => (
+                    <option key={user} value={user}>
+                      {user}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           {/* Información de filtros activos */}
-          {(dateFilter.startDate || dateFilter.endDate || modelFilter !== 'all') && (
+          {(dateFilter.startDate || dateFilter.endDate || modelFilter !== 'all' || (userFilter !== 'all' && isRoot)) && (
             <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
                 <strong>Filtros activos:</strong>
                 {dateFilter.startDate && ` Desde ${new Date(dateFilter.startDate).toLocaleDateString()}`}
                 {dateFilter.endDate && ` Hasta ${new Date(dateFilter.endDate).toLocaleDateString()}`}
                 {modelFilter !== 'all' && ` Modelo: ${modelFilter}`}
+                {userFilter !== 'all' && isRoot && ` Usuario: ${userFilter}`}
                 {' '}({filteredRecords.length} de {usageRecords.length} registros)
               </p>
             </div>
@@ -736,6 +808,20 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
           </div>
         )}
       </div>
+
+      {/* Popup */}
+      <Popup
+        isOpen={popupState.isOpen}
+        onClose={hidePopup}
+        title={popupState.title}
+        message={popupState.message}
+        type={popupState.type}
+        onConfirm={popupState.onConfirm}
+        onCancel={popupState.onCancel}
+        confirmText={popupState.confirmText}
+        cancelText={popupState.cancelText}
+        showButtons={popupState.showButtons}
+      />
     </div>
   );
 };
