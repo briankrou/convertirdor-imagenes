@@ -1,6 +1,6 @@
 import React from 'react';
 import { ImageData, ConversionSettings, ImageDescription } from '../types';
-import { X, FileImage, Download, CheckCircle, FileDown } from 'lucide-react';
+import { X, FileImage, Download, CheckCircle } from 'lucide-react';
 import { formatFileSize } from '../utils/formatFileSize';
 import { convertSingleImage } from '../utils/imageConverter';
 
@@ -10,7 +10,6 @@ interface ImageCardProps {
   settings: ConversionSettings;
   onNotification: (notification: { type: 'success' | 'error'; title: string; message: string }) => void;
   description?: ImageDescription;
-  onDownloadConverted?: (image: ImageData) => void;
 }
 
 export const ImageCard: React.FC<ImageCardProps> = ({ 
@@ -18,11 +17,9 @@ export const ImageCard: React.FC<ImageCardProps> = ({
   onRemove, 
   settings, 
   onNotification,
-  description,
-  onDownloadConverted
+  description
 }) => {
   const [isDownloading, setIsDownloading] = React.useState(false);
-  const [isDownloadingConverted, setIsDownloadingConverted] = React.useState(false);
 
   const handleDownload = async () => {
     setIsDownloading(true);
@@ -44,27 +41,6 @@ export const ImageCard: React.FC<ImageCardProps> = ({
     }
   };
 
-  const handleDownloadConverted = async () => {
-    if (!onDownloadConverted) return;
-    
-    setIsDownloadingConverted(true);
-    try {
-      await onDownloadConverted(image);
-      onNotification({
-        type: 'success',
-        title: 'Descarga completada',
-        message: `Imagen convertida y renombrada descargada correctamente`
-      });
-    } catch (error) {
-      onNotification({
-        type: 'error',
-        title: 'Error en la descarga',
-        message: `No se pudo descargar la imagen convertida`
-      });
-    } finally {
-      setIsDownloadingConverted(false);
-    }
-  };
 
   return (
     <div className="group relative bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
@@ -84,16 +60,6 @@ export const ImageCard: React.FC<ImageCardProps> = ({
           >
             <Download className="w-3 h-3" />
           </button>
-          {onDownloadConverted && (
-            <button
-              onClick={handleDownloadConverted}
-              disabled={isDownloadingConverted}
-              className="w-6 h-6 bg-green-500 hover:bg-green-600 disabled:bg-green-300 text-white rounded-full flex items-center justify-center transition-colors"
-              title="Descargar imagen convertida y renombrada"
-            >
-              <FileDown className="w-3 h-3" />
-            </button>
-          )}
           <button
             onClick={onRemove}
             className="w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors"
@@ -128,11 +94,6 @@ export const ImageCard: React.FC<ImageCardProps> = ({
             {isDownloading && (
               <div className="text-xs text-blue-600 mt-1 font-medium">
                 Descargando...
-              </div>
-            )}
-            {isDownloadingConverted && (
-              <div className="text-xs text-green-600 mt-1 font-medium">
-                Descargando convertida...
               </div>
             )}
           </div>

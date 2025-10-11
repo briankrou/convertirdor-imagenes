@@ -31,13 +31,16 @@ export class ChatGPTService {
         altTextPrompt: "Genera un texto alternativo descriptivo para accesibilidad que describa claramente el contenido de la imagen (máximo 125 caracteres)."
       };
 
-      let prompt = `Analiza esta imagen específica y proporciona:
-1. TÍTULO: ${prompts.titlePrompt}
-2. DESCRIPCIÓN: ${prompts.descriptionPrompt}
-3. LEYENDA: ${prompts.captionPrompt}
-4. TEXTO ALTERNATIVO: ${prompts.altTextPrompt}
+      let prompt = `Analiza esta imagen específica y proporciona la descripción en el siguiente formato exacto:
 
-Responde en formato JSON con las claves: "title", "description", "caption", "altText"`;
+================================================================================
+*Texto alternativo*: [${prompts.altTextPrompt}]
+*Título*: [${prompts.titlePrompt}]
+*Leyenda*: [${prompts.captionPrompt}]
+*Descripción*: [${prompts.descriptionPrompt}]
+================================================================================
+
+IMPORTANTE: Responde ÚNICAMENTE con el formato mostrado arriba, reemplazando los corchetes con el contenido generado. NO uses formato JSON, NO agregues texto adicional, NO uses comillas.`;
 
       // Agregar contexto del producto como información adicional (no como parte del prompt)
       if (productDescription && productDescription.trim()) {
@@ -145,14 +148,32 @@ Responde en formato JSON con las claves: "title", "description", "caption", "alt
   }
 
   private parseTextResponse(text: string): ChatGPTResponse {
-    // Extraer información del texto si no es JSON válido
+    // Extraer información del texto con el nuevo formato
     const lines = text.split('\n').filter(line => line.trim());
     
+    let title = 'Título no disponible';
+    let description = 'Descripción no disponible';
+    let caption = 'Leyenda no disponible';
+    let altText = 'Texto alternativo no disponible';
+    
+    // Buscar cada campo por su patrón
+    for (const line of lines) {
+      if (line.includes('*Texto alternativo*:')) {
+        altText = line.replace('*Texto alternativo*:', '').trim();
+      } else if (line.includes('*Título*:')) {
+        title = line.replace('*Título*:', '').trim();
+      } else if (line.includes('*Leyenda*:')) {
+        caption = line.replace('*Leyenda*:', '').trim();
+      } else if (line.includes('*Descripción*:')) {
+        description = line.replace('*Descripción*:', '').trim();
+      }
+    }
+    
     return {
-      title: lines[0] || 'Título no disponible',
-      description: lines[1] || 'Descripción no disponible',
-      caption: lines[2] || 'Leyenda no disponible',
-      altText: lines[3] || 'Texto alternativo no disponible'
+      title,
+      description,
+      caption,
+      altText
     };
   }
 

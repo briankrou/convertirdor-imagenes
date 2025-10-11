@@ -181,39 +181,6 @@ function App() {
     savePromptSettings(newSettings);
   }, [savePromptSettings]);
 
-  // Función para descargar una imagen individual convertida y renombrada
-  const handleDownloadSingleConverted = useCallback(async (image: ImageData) => {
-    try {
-      // Convertir la imagen a Blob
-      const blob = await convertSingleImageToBlob(image, settings);
-      
-      // Generar nombre de archivo personalizado
-      const filename = generateFileName(image.name, settings);
-      
-      // Crear URL y descargar
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      
-      addNotification({
-        type: 'success',
-        title: 'Descarga completada',
-        message: `Imagen convertida y renombrada como ${filename}`
-      });
-    } catch (error) {
-      console.error('Error downloading single converted image:', error);
-      addNotification({
-        type: 'error',
-        title: 'Error en la descarga',
-        message: 'No se pudo descargar la imagen convertida'
-      });
-    }
-  }, [settings, addNotification]);
 
   // Función para limpiar toda la configuración
   const handleClearConfig = useCallback(async () => {
@@ -506,12 +473,14 @@ function App() {
       let content = '';
 
       imageDescriptions.forEach((desc, index) => {
-        content += `${'='.repeat(80)}\n\n`;
+        content += `${'='.repeat(80)}\n`;
+        content += `\n`;
         content += `Texto alternativo: ${desc.altText}\n`;
         content += `Título: ${desc.title}\n`;
         content += `Leyenda: ${desc.caption}\n`;
         content += `Descripción: ${desc.description}\n`;
-        content += `${'='.repeat(80)}\n\n`;
+        content += `${'='.repeat(80)}\n`;
+        content += `\n`;
       });
 
       const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
@@ -589,12 +558,14 @@ function App() {
     let content = '';
 
     descriptions.forEach((desc, index) => {
-      content += `${'='.repeat(80)}\n\n`;
+      content += `${'='.repeat(80)}\n`;
+      content += `\n`;
       content += `Texto alternativo: ${desc.altText}\n`;
       content += `Título: ${desc.title}\n`;
       content += `Leyenda: ${desc.caption}\n`;
       content += `Descripción: ${desc.description}\n`;
-      content += `${'='.repeat(80)}\n\n`;
+      content += `${'='.repeat(80)}\n`;
+      content += `\n`;
     });
 
     return content;
@@ -714,7 +685,6 @@ function App() {
           settings={settings}
           onNotification={addNotification}
           imageDescriptions={imageDescriptions}
-          onDownloadConverted={handleDownloadSingleConverted}
         />
           )}
         </main>

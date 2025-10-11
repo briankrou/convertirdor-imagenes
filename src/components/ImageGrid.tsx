@@ -10,7 +10,6 @@ interface ImageGridProps {
   settings: ConversionSettings;
   onNotification: (notification: { type: 'success' | 'error'; title: string; message: string }) => void;
   imageDescriptions?: ImageDescription[];
-  onDownloadConverted?: (image: ImageData) => void;
 }
 
 export const ImageGrid: React.FC<ImageGridProps> = ({
@@ -19,8 +18,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
   onFilesSelected,
   settings,
   onNotification,
-  imageDescriptions = [],
-  onDownloadConverted
+  imageDescriptions = []
 }) => {
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -51,7 +49,6 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
               settings={settings}
               onNotification={onNotification}
               description={description}
-              onDownloadConverted={onDownloadConverted}
             />
           );
         })}
