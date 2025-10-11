@@ -7,6 +7,50 @@
 
 require('dotenv').config();
 
+// Función para validar URL de redirect según requisitos de Google
+function validateRedirectUri(uri) {
+  const errors = [];
+  
+  try {
+    const url = new URL(uri);
+    
+    // Debe tener protocolo
+    if (!url.protocol) {
+      errors.push('Debe tener un protocolo (http:// o https://)');
+    }
+    
+    // No puede contener fragmentos de URL
+    if (url.hash) {
+      errors.push('No puede contener fragmentos de URL (#)');
+    }
+    
+    // No puede ser una dirección IP pública
+    if (url.hostname.match(/^\d+\.\d+\.\d+\.\d+$/)) {
+      errors.push('No puede ser una dirección IP pública');
+    }
+    
+    // No puede contener comodines
+    if (uri.includes('*')) {
+      errors.push('No puede contener comodines (*)');
+    }
+    
+    // Para producción, debe usar HTTPS
+    if (process.env.NODE_ENV === 'production' && url.protocol !== 'https:') {
+      errors.push('Para producción debe usar HTTPS');
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  } catch (error) {
+    return {
+      isValid: false,
+      errors: ['URL no válida']
+    };
+  }
+}
+
 // Configuración de Gmail API según el entorno
 function getGmailConfig() {
   const isProduction = process.env.NODE_ENV === 'production';
@@ -28,14 +72,18 @@ function getGmailConfig() {
     redirectUri = redirectUris.production;
   }
   
+  // Validar URL de redirect
+  const validation = validateRedirectUri(redirectUri);
+  
   const config = {
     environment,
     clientId: process.env.GMAIL_CLIENT_ID || '',
     clientSecret: process.env.GMAIL_CLIENT_SECRET || '',
     redirectUri,
+    validation,
     fromEmail: process.env.GMAIL_FROM_EMAIL || 'admin@koko.toys',
     fromName: process.env.GMAIL_FROM_NAME || 'Koko.toys Admin',
-    enabled: !!(process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET)
+    enabled: !!(process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET && validation.isValid)
   };
   
   return config;
@@ -50,6 +98,15 @@ function displayGmailConfig() {
   console.log(`   Client ID: ${config.clientId ? '✅ Configurado' : '❌ No configurado'}`);
   console.log(`   Client Secret: ${config.clientSecret ? '✅ Configurado' : '❌ No configurado'}`);
   console.log(`   Redirect URI: ${config.redirectUri}`);
+  console.log(`   URI Válida: ${config.validation.isValid ? '✅ Sí' : '❌ No'}`);
+  
+  if (!config.validation.isValid) {
+    console.log(`   Errores de URI:`);
+    config.validation.errors.forEach(error => {
+      console.log(`     - ${error}`);
+    });
+  }
+  
   console.log(`   From Email: ${config.fromEmail}`);
   console.log(`   From Name: ${config.fromName}`);
   console.log(`   Habilitado: ${config.enabled ? '✅ Sí' : '❌ No'}`);
@@ -66,6 +123,14 @@ function displayGmailConfig() {
   console.log('🔗 URLs para configurar en Google Cloud Console:');
   console.log(`   Desarrollo: ${process.env.GMAIL_REDIRECT_URI_DEV || 'http://localhost:3000/auth/callback'}`);
   console.log(`   Producción: ${process.env.GMAIL_REDIRECT_URI_PROD || 'https://dbkoko-convertidor-imagenes.mvitku.easypanel.host/auth/callback'}`);
+  console.log('');
+  console.log('📋 Requisitos de Google Cloud Console:');
+  console.log('   ✅ Debe tener protocolo (http:// o https://)');
+  console.log('   ✅ No puede contener fragmentos de URL (#)');
+  console.log('   ✅ No puede contener rutas relativas');
+  console.log('   ✅ No puede contener comodines (*)');
+  console.log('   ✅ No puede ser una dirección IP pública');
+  console.log('   ✅ Para producción debe usar HTTPS');
   console.log('');
   
   return config;
