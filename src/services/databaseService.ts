@@ -28,7 +28,7 @@ class DatabaseService {
         },
         chatGPTSettings: {
           apiKey: '',
-          model: 'gpt-4-turbo',
+          model: 'gpt-4o',
           enabled: false
         },
         promptSettings: {
@@ -135,7 +135,7 @@ class DatabaseService {
       },
       chatGPTSettings: {
         apiKey: '',
-        model: 'gpt-4-turbo',
+        model: 'gpt-4o',
         enabled: false
       },
       promptSettings: {

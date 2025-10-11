@@ -22,7 +22,7 @@ function App() {
   });
   const [chatGPTSettings, setChatGPTSettings] = useState<ChatGPTSettings>({
     apiKey: '',
-    model: 'gpt-4-turbo',
+    model: 'gpt-4o',
     enabled: false
   });
   const [promptSettings, setPromptSettings] = useState<PromptSettings>({
@@ -199,7 +199,7 @@ function App() {
         
         const defaultChatGPTSettings: ChatGPTSettings = {
           apiKey: '',
-          model: 'gpt-4-turbo',
+          model: 'gpt-4o',
           enabled: false
         };
         

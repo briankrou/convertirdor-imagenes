@@ -17,7 +17,7 @@ export interface ConversionSettings {
 
 export interface ChatGPTSettings {
   apiKey: string;
-  model: 'gpt-4' | 'gpt-4-turbo' | 'gpt-3.5-turbo';
+  model: 'gpt-4' | 'gpt-4-turbo' | 'gpt-4o' | 'gpt-4o-mini' | 'gpt-4.1' | 'o3' | 'o4-mini' | 'gpt-3.5-turbo';
   enabled: boolean;
 }
 

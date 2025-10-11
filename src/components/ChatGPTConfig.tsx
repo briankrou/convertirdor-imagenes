@@ -19,21 +19,51 @@ export const ChatGPTConfig: React.FC<ChatGPTConfigProps> = ({
 
   const modelOptions = [
     { 
-      value: 'gpt-4' as const, 
-      label: 'GPT-4', 
-      description: 'Modelo más avanzado, mejor calidad',
-      price: 'Más caro'
+      value: 'gpt-4o' as const, 
+      label: 'GPT-4o (Omni)', 
+      description: 'Modelo multimodal más avanzado con visión robusta',
+      price: 'Recomendado'
+    },
+    { 
+      value: 'gpt-4o-mini' as const, 
+      label: 'GPT-4o Mini', 
+      description: 'Versión ligera con capacidades visuales optimizadas',
+      price: 'Económico'
     },
     { 
       value: 'gpt-4-turbo' as const, 
       label: 'GPT-4 Turbo', 
-      description: 'Versión optimizada de GPT-4',
+      description: 'Versión optimizada de GPT-4 con visión',
       price: 'Precio medio'
+    },
+    { 
+      value: 'gpt-4' as const, 
+      label: 'GPT-4 (Visión)', 
+      description: 'Modelo avanzado con capacidades de visión',
+      price: 'Más caro'
+    },
+    { 
+      value: 'gpt-4.1' as const, 
+      label: 'GPT-4.1', 
+      description: 'Familia GPT-4.1 con versiones de visión',
+      price: 'Precio medio'
+    },
+    { 
+      value: 'o3' as const, 
+      label: 'o3', 
+      description: 'Modelo de razonamiento avanzado con análisis visual profundo',
+      price: 'Premium'
+    },
+    { 
+      value: 'o4-mini' as const, 
+      label: 'o4-mini', 
+      description: 'Razonamiento eficiente con capacidades visuales',
+      price: 'Económico'
     },
     { 
       value: 'gpt-3.5-turbo' as const, 
       label: 'GPT-3.5 Turbo', 
-      description: 'Modelo rápido y económico',
+      description: 'Modelo rápido y económico (sin visión)',
       price: 'Más económico'
     }
   ];
