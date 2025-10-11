@@ -99,6 +99,7 @@ export interface User {
   profileName?: string;
   profileImage?: string;
   email?: string;
+  currency?: string;
 }
 
 export interface AuthState {
@@ -146,12 +147,19 @@ export interface UserSMTPSettings {
   enabled: boolean;
 }
 
+export interface UserPreferences {
+  currency: string;
+  language?: string;
+  timezone?: string;
+}
+
 export interface UserSettings {
   username: string;
   chatGPTSettings: UserChatGPTSettings;
   promptSettings: UserPromptSettings;
   conversionSettings: UserConversionSettings;
   smtpSettings: UserSMTPSettings;
+  preferences: UserPreferences;
 }
 
 // Alias para compatibilidad con el código existente
@@ -159,3 +167,4 @@ export type ConversionSettings = UserConversionSettings;
 export type ChatGPTSettings = UserChatGPTSettings;
 export type PromptSettings = UserPromptSettings;
 export type SMTPSettings = UserSMTPSettings;
+export type Preferences = UserPreferences;

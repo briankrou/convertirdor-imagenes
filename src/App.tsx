@@ -7,6 +7,7 @@ import { NotificationContainer } from './components/NotificationContainer';
 import { ChatGPTConfig } from './components/ChatGPTConfig';
 import { PromptConfig } from './components/PromptConfig';
 import { SMTPConfig } from './components/SMTPConfig';
+import { CurrencyAPIConfig } from './components/CurrencyAPIConfig';
 import { UsageHistory } from './components/UsageHistory';
 import { Login } from './components/Login';
 import { UserManagement } from './components/UserManagement';
@@ -61,7 +62,7 @@ function App() {
   const [convertedImages, setConvertedImages] = useState<{ blob: Blob; filename: string }[]>([]);
   const [isConverting, setIsConverting] = useState(false);
   const [isGeneratingDescriptions, setIsGeneratingDescriptions] = useState(false);
-  const [currentPage, setCurrentPage] = useState<'main' | 'chatgpt-config' | 'prompt-config' | 'smtp-config' | 'usage-history' | 'user-management' | 'profile-config'>('main');
+  const [currentPage, setCurrentPage] = useState<'main' | 'chatgpt-config' | 'prompt-config' | 'smtp-config' | 'currency-api-config' | 'usage-history' | 'user-management' | 'profile-config'>('main');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [authState, setAuthState] = useState<AuthState>({
@@ -1098,6 +1099,14 @@ function App() {
     );
   }
 
+  if (currentPage === 'currency-api-config') {
+    return (
+      <CurrencyAPIConfig
+        onBack={() => setCurrentPage('main')}
+      />
+    );
+  }
+
   if (currentPage === 'usage-history') {
     return (
       <UsageHistory
@@ -1147,6 +1156,7 @@ function App() {
         onChatGPTConfig={() => setCurrentPage('chatgpt-config')}
         onPromptConfig={() => setCurrentPage('prompt-config')}
         onSMTPConfig={() => setCurrentPage('smtp-config')}
+        onCurrencyAPIConfig={() => setCurrentPage('currency-api-config')}
         onClearConfig={handleClearConfig}
         onUsageHistory={() => setCurrentPage('usage-history')}
         onUserManagement={() => setCurrentPage('user-management')}

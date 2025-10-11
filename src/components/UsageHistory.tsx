@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, BarChart3, DollarSign, Zap, Clock, CheckCircle, XCircle, Trash2, Download, Filter, X, Users, User } from 'lucide-react';
-import { UsageRecord, UsageStats } from '../types';
+import { ArrowLeft, BarChart3, DollarSign, Zap, Clock, CheckCircle, XCircle, Trash2, Download, Filter, X, Users, User, RefreshCw } from 'lucide-react';
+import { UsageRecord, UsageStats, UserPreferences } from '../types';
 import { authService } from '../services/authService';
+import { databaseService } from '../services/databaseService';
+import { currencyService } from '../services/currencyService';
 import { Popup } from './Popup';
 import { usePopup } from '../hooks/usePopup';
 
@@ -25,6 +27,13 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser] = useState(authService.getCurrentUser());
   const [isRoot] = useState(authService.isRoot());
+  const [userPreferences, setUserPreferences] = useState<UserPreferences>({
+    currency: 'USD',
+    language: 'es',
+    timezone: 'America/Mexico_City'
+  });
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [isUsingRealRates, setIsUsingRealRates] = useState(false);
   const { popupState, hidePopup, showConfirm, showAlert } = usePopup();
   
   // Filtros
@@ -42,11 +51,35 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
 
   useEffect(() => {
     loadUsageHistory();
+    loadUserPreferences();
+    loadExchangeRates();
   }, []);
 
   useEffect(() => {
     applyFilters();
   }, [usageRecords, dateFilter, modelFilter, userFilter]);
+
+  // Recargar preferencias cuando el usuario cambie la moneda o configuración de API
+  useEffect(() => {
+    const handleStorageChange = () => {
+      loadUserPreferences();
+      loadExchangeRates();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Actualizar tasas de cambio cada 5 minutos si están habilitadas
+  useEffect(() => {
+    if (isUsingRealRates) {
+      const interval = setInterval(() => {
+        loadExchangeRates();
+      }, 5 * 60 * 1000); // 5 minutos
+
+      return () => clearInterval(interval);
+    }
+  }, [isUsingRealRates]);
 
   const loadUsageHistory = () => {
     try {
@@ -108,6 +141,31 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const loadUserPreferences = async () => {
+    try {
+      if (currentUser) {
+        const preferences = await databaseService.getUserPreferences(currentUser.username);
+        setUserPreferences(preferences);
+      }
+    } catch (error) {
+      console.error('Error loading user preferences:', error);
+    }
+  };
+
+  const loadExchangeRates = async () => {
+    try {
+      // Usar el servicio de monedas para obtener las tasas actuales
+      setLastUpdate(currencyService.getLastUpdate());
+      setIsUsingRealRates(currencyService.isUsingRealRates());
+    } catch (error) {
+      console.error('Error loading exchange rates:', error);
+    }
+  };
+
+  const convertCurrency = (amountUSD: number, targetCurrency: string): number => {
+    return currencyService.convertCurrency(amountUSD, 'USD', targetCurrency);
   };
 
   const applyFilters = () => {
@@ -347,7 +405,7 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
     if (filteredRecords.length === 0) return;
 
     const csvContent = [
-      ['Fecha', 'Modelo', 'Imagen', 'Tokens de Entrada', 'Tokens de Salida', 'Total Tokens', 'Costo (USD)', 'Estado'],
+      ['Fecha', 'Modelo', 'Imagen', 'Tokens de Entrada', 'Tokens de Salida', 'Total Tokens', `Costo (${userPreferences.currency})`, 'Estado'],
       ...filteredRecords.map(record => [
         new Date(record.timestamp).toLocaleString(),
         record.model,
@@ -355,7 +413,7 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
         record.promptTokens.toString(),
         record.completionTokens.toString(),
         record.totalTokens.toString(),
-        record.cost.toFixed(6),
+        convertCurrency(record.cost, userPreferences.currency).toFixed(6),
         record.success ? 'Éxito' : 'Error'
       ])
     ].map(row => row.join(',')).join('\n');
@@ -371,13 +429,29 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
     document.body.removeChild(link);
   };
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amountUSD: number) => {
+    const convertedAmount = convertCurrency(amountUSD, userPreferences.currency);
+    const currencyCode = userPreferences.currency;
+    
+    // Configurar el formato según la moneda
+    let minimumFractionDigits = 6;
+    let maximumFractionDigits = 6;
+    
+    // Ajustar decimales según la moneda
+    if (['JPY', 'KRW'].includes(currencyCode)) {
+      minimumFractionDigits = 0;
+      maximumFractionDigits = 0;
+    } else if (['MXN', 'BRL', 'ARS', 'CLP', 'COP'].includes(currencyCode)) {
+      minimumFractionDigits = 2;
+      maximumFractionDigits = 2;
+    }
+    
     return new Intl.NumberFormat('es-ES', {
       style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 6,
-      maximumFractionDigits: 6
-    }).format(amount);
+      currency: currencyCode,
+      minimumFractionDigits,
+      maximumFractionDigits
+    }).format(convertedAmount);
   };
 
   const formatNumber = (num: number) => {
@@ -422,10 +496,34 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
                   Vista Completa
                 </div>
               )}
+              <div className={`ml-4 px-3 py-1 text-xs font-medium rounded-full flex items-center space-x-1 ${isUsingRealRates ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                <DollarSign className="w-3 h-3" />
+                <span>{userPreferences.currency}</span>
+                {isUsingRealRates ? (
+                  <span className="ml-1 text-green-600" title="Tasas de cambio reales de FreeCurrencyAPI">•</span>
+                ) : (
+                  <span className="ml-1 text-yellow-600" title="Tasas de cambio simuladas">~</span>
+                )}
+              </div>
             </div>
           </div>
           
           <div className="flex items-center space-x-2">
+            <button
+              onClick={async () => {
+                await loadUserPreferences();
+                await loadExchangeRates();
+                if (isUsingRealRates) {
+                  await currencyService.forceUpdate();
+                  setLastUpdate(currencyService.getLastUpdate());
+                }
+              }}
+              className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors flex items-center space-x-1"
+              title="Actualizar configuración de moneda y tasas de cambio"
+            >
+              <RefreshCw className="w-3 h-3" />
+              <span>Actualizar</span>
+            </button>
             {usageRecords.length > 0 && (
               <>
                 <button
@@ -667,6 +765,16 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
                   <p className="text-2xl font-bold text-gray-900 mt-1">
                     {formatCurrency(stats.totalCost)}
                   </p>
+                  {userPreferences.currency !== 'USD' && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Convertido desde USD (1 USD = {currencyService.getExchangeRate('USD', userPreferences.currency).toFixed(2)} {userPreferences.currency})
+                      {isUsingRealRates && lastUpdate && (
+                        <span className="ml-2 text-green-600">
+                          • Actualizado: {lastUpdate.toLocaleTimeString()}
+                        </span>
+                      )}
+                    </p>
+                  )}
                 </div>
 
                 <div className="bg-white p-4 rounded-lg border border-gray-200">
@@ -723,7 +831,7 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
                         Tokens
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Costo
+                        Costo ({userPreferences.currency})
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Estado

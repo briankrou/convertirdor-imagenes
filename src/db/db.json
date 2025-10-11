@@ -36,6 +36,11 @@
         "fromEmail": "",
         "fromName": "Sistema de Recuperación",
         "enabled": false
+      },
+      "preferences": {
+        "currency": "USD",
+        "language": "es",
+        "timezone": "America/Mexico_City"
       }
     }
   },

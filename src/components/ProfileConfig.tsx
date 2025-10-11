@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react';
-import { User } from '../types';
+import React, { useState, useRef, useEffect } from 'react';
+import { User, UserPreferences } from '../types';
 import { authService } from '../services/authService';
-import { Camera, User as UserIcon, Lock, Save, Upload, Mail } from 'lucide-react';
+import { databaseService } from '../services/databaseService';
+import { Camera, User as UserIcon, Lock, Save, Upload, Mail, DollarSign, Globe } from 'lucide-react';
 
 interface ProfileConfigProps {
   currentUser: User;
@@ -16,6 +17,7 @@ export const ProfileConfig: React.FC<ProfileConfigProps> = ({
 }) => {
   const [profileName, setProfileName] = useState(currentUser.profileName || currentUser.username);
   const [email, setEmail] = useState(currentUser.email || '');
+  const [currency, setCurrency] = useState(currentUser.currency || 'USD');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -23,7 +25,27 @@ export const ProfileConfig: React.FC<ProfileConfigProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [preferences, setPreferences] = useState<UserPreferences>({
+    currency: 'USD',
+    language: 'es',
+    timezone: 'America/Mexico_City'
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Cargar preferencias del usuario
+  useEffect(() => {
+    const loadPreferences = async () => {
+      try {
+        const userPreferences = await databaseService.getUserPreferences(currentUser.username);
+        setPreferences(userPreferences);
+        setCurrency(userPreferences.currency);
+      } catch (error) {
+        console.error('Error loading preferences:', error);
+      }
+    };
+
+    loadPreferences();
+  }, [currentUser.username]);
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -76,8 +98,16 @@ export const ProfileConfig: React.FC<ProfileConfigProps> = ({
       const updatedUser = await authService.updateUserProfile(currentUser.id, {
         profileName: profileName.trim(),
         profileImage: profileImage,
-        email: email.trim() || undefined
+        email: email.trim() || undefined,
+        currency: currency
       });
+
+      // Actualizar preferencias
+      const updatedPreferences: UserPreferences = {
+        ...preferences,
+        currency: currency
+      };
+      await databaseService.saveUserPreferences(currentUser.username, updatedPreferences);
 
       onProfileUpdated(updatedUser);
       setSuccess('Perfil actualizado correctamente');
@@ -273,8 +303,80 @@ export const ProfileConfig: React.FC<ProfileConfigProps> = ({
                 />
                 <p className="text-xs text-gray-500 mt-1">Necesario para recuperar tu contraseña</p>
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <DollarSign className="w-4 h-4 inline mr-1" />
+                  Moneda
+                </label>
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="USD">USD - Dólar Estadounidense</option>
+                  <option value="EUR">EUR - Euro</option>
+                  <option value="MXN">MXN - Peso Mexicano</option>
+                  <option value="GBP">GBP - Libra Esterlina</option>
+                  <option value="CAD">CAD - Dólar Canadiense</option>
+                  <option value="AUD">AUD - Dólar Australiano</option>
+                  <option value="JPY">JPY - Yen Japonés</option>
+                  <option value="CNY">CNY - Yuan Chino</option>
+                  <option value="BRL">BRL - Real Brasileño</option>
+                  <option value="ARS">ARS - Peso Argentino</option>
+                  <option value="CLP">CLP - Peso Chileno</option>
+                  <option value="COP">COP - Peso Colombiano</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">Moneda para mostrar costos en el historial de uso</p>
+              </div>
             </div>
           </div>
+
+          {/* Password Recovery Settings Section - Solo para administradores */}
+          {currentUser.isRoot && (
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <Mail className="w-5 h-5 mr-2" />
+                Configuración de Recuperación de Contraseña
+              </h2>
+              
+              <div className="space-y-4">
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start space-x-3">
+                    <Mail className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h3 className="text-sm font-medium text-blue-900 mb-1">
+                        Email de Recuperación
+                      </h3>
+                      <p className="text-sm text-blue-700 mb-2">
+                        El email configurado arriba se utilizará para enviarte una nueva contraseña si olvidas la tuya.
+                      </p>
+                      <p className="text-xs text-blue-600">
+                        Asegúrate de que el email sea válido y esté accesible para recibir correos de recuperación.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-start space-x-3">
+                    <Globe className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h3 className="text-sm font-medium text-amber-900 mb-1">
+                        Configuración SMTP
+                      </h3>
+                      <p className="text-sm text-amber-700 mb-2">
+                        Para que funcione la recuperación de contraseña, el administrador debe configurar un servidor SMTP.
+                      </p>
+                      <p className="text-xs text-amber-600">
+                        Contacta al administrador si tienes problemas para recuperar tu contraseña.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Change Password Section */}
           <div className="bg-white rounded-lg border border-gray-200 p-6">

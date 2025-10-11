@@ -1,10 +1,11 @@
 import React from 'react';
-import { Image, Settings, Brain, FileText, Trash2, BarChart3, Users, LogOut, User, Mail } from 'lucide-react';
+import { Image, Settings, Brain, FileText, Trash2, BarChart3, Users, LogOut, User, Mail, Globe } from 'lucide-react';
 
 interface HeaderProps {
   onChatGPTConfig?: () => void;
   onPromptConfig?: () => void;
   onSMTPConfig?: () => void;
+  onCurrencyAPIConfig?: () => void;
   onClearConfig?: () => void;
   onUsageHistory?: () => void;
   onUserManagement?: () => void;
@@ -17,6 +18,7 @@ export const Header: React.FC<HeaderProps> = ({
   onChatGPTConfig, 
   onPromptConfig, 
   onSMTPConfig,
+  onCurrencyAPIConfig,
   onClearConfig, 
   onUsageHistory, 
   onUserManagement, 
@@ -69,6 +71,15 @@ export const Header: React.FC<HeaderProps> = ({
             title="Configurar SMTP"
           >
             <Mail className="w-5 h-5" />
+          </button>
+        )}
+        {currentUser?.isRoot && (
+          <button 
+            onClick={onCurrencyAPIConfig}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Configurar Conversión de Monedas"
+          >
+            <Globe className="w-5 h-5" />
           </button>
         )}
         <button 

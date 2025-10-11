@@ -1,4 +1,4 @@
-import { UserSettings, UserChatGPTSettings, UserPromptSettings, UserConversionSettings, UserSMTPSettings } from '../types';
+import { UserSettings, UserChatGPTSettings, UserPromptSettings, UserConversionSettings, UserSMTPSettings, UserPreferences } from '../types';
 import { DatabaseSync } from '../utils/dbSync';
 
 interface DatabaseSchema {
@@ -79,6 +79,21 @@ class DatabaseService {
         captionPrompt: "Crea una leyenda corta y atractiva para esta imagen que resalte las características principales del producto (1 oración).",
         altTextPrompt: "Genera un texto alternativo descriptivo para accesibilidad que describa claramente el contenido de la imagen (máximo 125 caracteres).",
         useCustomPrompts: false
+      },
+      smtpSettings: {
+        host: '',
+        port: 587,
+        secure: false,
+        username: '',
+        password: '',
+        fromEmail: '',
+        fromName: 'Sistema de Recuperación',
+        enabled: false
+      },
+      preferences: {
+        currency: 'USD',
+        language: 'es',
+        timezone: 'America/Mexico_City'
       }
     };
   }
@@ -236,6 +251,44 @@ class DatabaseService {
       this.data.userSettings[username].smtpSettings = settings;
     }
 
+    this.data.lastUpdated = new Date().toISOString();
+    await this.saveData();
+  }
+
+  // Métodos para preferencias de usuario
+  async getUserPreferences(username: string): Promise<UserPreferences> {
+    await this.ensureInitialized();
+    
+    if (!this.data) {
+      throw new Error('Database not initialized');
+    }
+
+    const userSettings = this.data.userSettings[username];
+    if (!userSettings || !userSettings.preferences) {
+      // Retornar configuración por defecto
+      return {
+        currency: 'USD',
+        language: 'es',
+        timezone: 'America/Mexico_City'
+      };
+    }
+
+    return userSettings.preferences;
+  }
+
+  async saveUserPreferences(username: string, preferences: UserPreferences): Promise<void> {
+    await this.ensureInitialized();
+    
+    if (!this.data) {
+      throw new Error('Database not initialized');
+    }
+
+    // Asegurar que el usuario existe
+    if (!this.data.userSettings[username]) {
+      this.data.userSettings[username] = this.getDefaultUserSettings(username);
+    }
+
+    this.data.userSettings[username].preferences = preferences;
     this.data.lastUpdated = new Date().toISOString();
     await this.saveData();
   }
