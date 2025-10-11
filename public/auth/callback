@@ -142,11 +142,11 @@
           // Mostrar éxito
           showSuccess();
           
-          // Cerrar ventana después de un delay
+          // Cerrar ventana inmediatamente
+          console.log('🚪 [CALLBACK] Cerrando ventana...');
           setTimeout(() => {
-            console.log('🚪 [CALLBACK] Cerrando ventana...');
             window.close();
-          }, 2000);
+          }, 1000);
           
         } catch (error) {
           console.error('❌ [CALLBACK] Error al intercambiar código:', error);
@@ -188,8 +188,9 @@
         
         // Cerrar ventana después de un delay
         setTimeout(() => {
+          console.log('🚪 [CALLBACK] Cerrando ventana por error...');
           window.close();
-        }, 3000);
+        }, 2000);
       }
     })();
   </script>

@@ -169,12 +169,17 @@ export const GmailApiConfig: React.FC<GmailApiConfigProps> = ({
             console.error('❌ Error al guardar tokens en localStorage:', error);
           }
           
+          // Cerrar ventana popup si está abierta
           if (authWindow && !authWindow.closed) {
+            console.log('🚪 [GmailApiConfig] Cerrando ventana popup...');
             authWindow.close();
           }
+          
+          // Limpiar listener y estado
           window.removeEventListener('message', messageListener);
           setIsAuthorizing(false);
           
+          // Mostrar notificación de éxito
           showConfirm(
             'Autorización exitosa',
             'La aplicación ha sido autorizada correctamente. Ahora puedes enviar emails.',
@@ -186,6 +191,13 @@ export const GmailApiConfig: React.FC<GmailApiConfigProps> = ({
               showButtons: false
             }
           );
+          
+          // Forzar actualización de la configuración
+          console.log('🔄 [GmailApiConfig] Actualizando configuración...');
+          setTimeout(() => {
+            // Recargar la configuración para verificar el estado
+            onSettingsChange(updatedSettings);
+          }, 500);
         } else if (event.data.type === 'GMAIL_AUTH_ERROR') {
           console.log('❌ Error de autorización recibido:', event.data.error);
           
@@ -214,9 +226,23 @@ export const GmailApiConfig: React.FC<GmailApiConfigProps> = ({
       // Verificar si la ventana se cerró manualmente
       const checkClosed = setInterval(() => {
         if (authWindow?.closed) {
+          console.log('🚪 [GmailApiConfig] Ventana cerrada manualmente');
           clearInterval(checkClosed);
           window.removeEventListener('message', messageListener);
           setIsAuthorizing(false);
+          
+          // Mostrar mensaje de que la autorización fue cancelada
+          showConfirm(
+            'Autorización cancelada',
+            'La ventana de autorización fue cerrada. Si quieres autorizar la aplicación, intenta nuevamente.',
+            () => {},
+            {
+              confirmText: 'Entendido',
+              cancelText: '',
+              type: 'warning',
+              showButtons: false
+            }
+          );
         }
       }, 1000);
       
@@ -562,15 +588,38 @@ export const GmailApiConfig: React.FC<GmailApiConfigProps> = ({
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Redirect URI
                   </label>
-                  <input
-                    type="text"
-                    value={settings.redirectUri}
-                    onChange={(e) => handleInputChange('redirectUri', e.target.value)}
-                    placeholder="http://localhost:3000/auth/callback"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={settings.redirectUri}
+                      readOnly
+                      placeholder="http://localhost:3000/auth/callback"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed pr-20"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(settings.redirectUri);
+                        showConfirm(
+                          'URL Copiada',
+                          'La URL de redirección ha sido copiada al portapapeles.',
+                          () => {},
+                          {
+                            confirmText: 'Entendido',
+                            cancelText: '',
+                            type: 'success',
+                            showButtons: false
+                          }
+                        );
+                      }}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                      title="Copiar URL"
+                    >
+                      📋 Copiar
+                    </button>
+                  </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    URL de redirección configurada en Google Cloud Console
+                    URL fija donde Google redirigirá después de la autorización. Solo se puede copiar.
                   </p>
                 </div>
               </div>
