@@ -82,3 +82,32 @@ export interface AuthState {
   currentUser: User | null;
   isLoading: boolean;
 }
+
+export interface UserChatGPTSettings {
+  apiKey: string;
+  model: 'gpt-4-turbo' | 'gpt-4o' | 'gpt-4o-mini' | 'gpt-4.1' | 'o3';
+  enabled: boolean;
+}
+
+export interface UserPromptSettings {
+  titlePrompt: string;
+  descriptionPrompt: string;
+  captionPrompt: string;
+  altTextPrompt: string;
+  useCustomPrompts: boolean;
+}
+
+export interface UserConversionSettings {
+  format: 'jpeg' | 'png' | 'gif' | 'bmp' | 'webp';
+  quality: number;
+  imageNamePrefix: string;
+  sdkSuffix: string;
+  productDescription: string;
+}
+
+export interface UserSettings {
+  username: string;
+  chatGPTSettings: UserChatGPTSettings;
+  promptSettings: UserPromptSettings;
+  conversionSettings: UserConversionSettings;
+}

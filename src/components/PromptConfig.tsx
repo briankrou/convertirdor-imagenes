@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
-import { ArrowLeft, FileText, RotateCcw, Save, Eye, EyeOff } from 'lucide-react';
-import { PromptSettings } from '../types';
+import { ArrowLeft, FileText, RotateCcw, Save, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { UserPromptSettings } from '../types';
 
 interface PromptConfigProps {
-  settings: PromptSettings;
-  onSettingsChange: (settings: PromptSettings) => void;
+  settings: UserPromptSettings;
+  onSettingsChange: (settings: UserPromptSettings) => void;
+  onClearSettings: () => void;
   onBack: () => void;
 }
 
 export const PromptConfig: React.FC<PromptConfigProps> = ({
   settings,
   onSettingsChange,
+  onClearSettings,
   onBack
 }) => {
   const [showPreview, setShowPreview] = useState(false);
@@ -45,6 +47,12 @@ export const PromptConfig: React.FC<PromptConfigProps> = ({
       ...defaultPrompts,
       useCustomPrompts: true
     });
+  };
+
+  const handleClearSettings = () => {
+    if (window.confirm('¿Estás seguro de que quieres limpiar tu configuración de prompts? Esta acción restablecerá todos los valores a los predeterminados.')) {
+      onClearSettings();
+    }
   };
 
   const getCurrentPrompts = () => {
@@ -257,6 +265,27 @@ export const PromptConfig: React.FC<PromptConfigProps> = ({
               <li>• Los prompts predeterminados están optimizados para generar contenido de calidad</li>
               <li>• La descripción del producto se usará como contexto adicional, no como parte del prompt</li>
             </ul>
+          </div>
+
+          {/* Botón de Limpiar Configuración */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Limpiar Configuración
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Restablece tu configuración de prompts a los valores predeterminados
+                </p>
+              </div>
+              <button
+                onClick={handleClearSettings}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Limpiar Configuración</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

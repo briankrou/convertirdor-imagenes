@@ -9,7 +9,7 @@ import { PromptConfig } from './components/PromptConfig';
 import { UsageHistory } from './components/UsageHistory';
 import { Login } from './components/Login';
 import { UserManagement } from './components/UserManagement';
-import { ImageData, ConversionSettings, ChatGPTSettings, PromptSettings, ImageDescription, Notification, AuthState } from './types';
+import { ImageData, ConversionSettings, ChatGPTSettings, PromptSettings, ImageDescription, Notification, AuthState, UserConversionSettings, UserChatGPTSettings, UserPromptSettings } from './types';
 import { convertImages } from './utils/imageConverter';
 import { ChatGPTService } from './services/chatgptService';
 import { databaseService } from './services/databaseService';
@@ -17,19 +17,19 @@ import { authService } from './services/authService';
 
 function App() {
   const [images, setImages] = useState<ImageData[]>([]);
-  const [settings, setSettings] = useState<ConversionSettings>({
+  const [settings, setSettings] = useState<UserConversionSettings>({
     format: 'png',
     quality: 90,
     imageNamePrefix: 'imagen',
     sdkSuffix: 'A5455',
     productDescription: ''
   });
-  const [chatGPTSettings, setChatGPTSettings] = useState<ChatGPTSettings>({
+  const [chatGPTSettings, setChatGPTSettings] = useState<UserChatGPTSettings>({
     apiKey: '',
     model: 'gpt-4o',
     enabled: false
   });
-  const [promptSettings, setPromptSettings] = useState<PromptSettings>({
+  const [promptSettings, setPromptSettings] = useState<UserPromptSettings>({
     titlePrompt: "Genera un título atractivo y descriptivo para esta imagen (máximo 60 caracteres). El título debe ser claro, conciso y que capture la esencia del producto mostrado.",
     descriptionPrompt: "Describe detalladamente lo que ves en esta imagen. Incluye características visuales, colores, materiales, estilo y cualquier detalle relevante del producto (2-3 oraciones).",
     captionPrompt: "Crea una leyenda corta y atractiva para esta imagen que resalte las características principales del producto (1 oración).",
@@ -59,17 +59,21 @@ function App() {
         const auth = authService.getAuthState();
         setAuthState(auth);
         
-        if (auth.isAuthenticated) {
-          const allSettings = await databaseService.getAllSettings();
+        if (auth.isAuthenticated && auth.currentUser) {
+          const username = auth.currentUser.username;
           
-          setSettings(allSettings.conversionSettings);
-          setChatGPTSettings(allSettings.chatGPTSettings);
-          setPromptSettings(allSettings.promptSettings);
+          const userConversionSettings = await databaseService.getUserConversionSettings(username);
+          const userChatGPTSettings = await databaseService.getUserChatGPTSettings(username);
+          const userPromptSettings = await databaseService.getUserPromptSettings(username);
+          
+          setSettings(userConversionSettings);
+          setChatGPTSettings(userChatGPTSettings);
+          setPromptSettings(userPromptSettings);
           
           addNotification({
             type: 'success',
             title: 'Configuración cargada',
-            message: 'Se cargó la configuración guardada correctamente'
+            message: `Se cargó la configuración de ${username} correctamente`
           });
         }
       } catch (error) {
@@ -88,31 +92,95 @@ function App() {
   }, []);
 
   // Función para guardar configuración de conversión
-  const saveConversionSettings = useCallback(async (newSettings: ConversionSettings) => {
+  const saveConversionSettings = useCallback(async (newSettings: UserConversionSettings) => {
     try {
-      await databaseService.saveConversionSettings(newSettings);
+      if (authState.currentUser) {
+        await databaseService.saveUserConversionSettings(authState.currentUser.username, newSettings);
+      }
     } catch (error) {
       console.error('Error saving conversion settings:', error);
     }
-  }, []);
+  }, [authState.currentUser]);
 
   // Función para guardar configuración de ChatGPT
-  const saveChatGPTSettings = useCallback(async (newSettings: ChatGPTSettings) => {
+  const saveChatGPTSettings = useCallback(async (newSettings: UserChatGPTSettings) => {
     try {
-      await databaseService.saveChatGPTSettings(newSettings);
+      if (authState.currentUser) {
+        await databaseService.saveUserChatGPTSettings(authState.currentUser.username, newSettings);
+      }
     } catch (error) {
       console.error('Error saving ChatGPT settings:', error);
     }
-  }, []);
+  }, [authState.currentUser]);
 
   // Función para guardar configuración de prompts
-  const savePromptSettings = useCallback(async (newSettings: PromptSettings) => {
+  const savePromptSettings = useCallback(async (newSettings: UserPromptSettings) => {
     try {
-      await databaseService.savePromptSettings(newSettings);
+      if (authState.currentUser) {
+        await databaseService.saveUserPromptSettings(authState.currentUser.username, newSettings);
+      }
     } catch (error) {
       console.error('Error saving prompt settings:', error);
     }
-  }, []);
+  }, [authState.currentUser]);
+
+  // Función para limpiar configuración de ChatGPT
+  const clearChatGPTSettings = useCallback(async () => {
+    try {
+      if (authState.currentUser) {
+        const defaultSettings: UserChatGPTSettings = {
+          apiKey: '',
+          model: 'gpt-4o',
+          enabled: false
+        };
+        await databaseService.saveUserChatGPTSettings(authState.currentUser.username, defaultSettings);
+        setChatGPTSettings(defaultSettings);
+        
+        addNotification({
+          type: 'success',
+          title: 'Configuración limpiada',
+          message: 'La configuración de ChatGPT se ha restablecido a los valores predeterminados'
+        });
+      }
+    } catch (error) {
+      console.error('Error clearing ChatGPT settings:', error);
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'No se pudo limpiar la configuración de ChatGPT'
+      });
+    }
+  }, [authState.currentUser]);
+
+  // Función para limpiar configuración de prompts
+  const clearPromptSettings = useCallback(async () => {
+    try {
+      if (authState.currentUser) {
+        const defaultSettings: UserPromptSettings = {
+          titlePrompt: "Genera un título atractivo y descriptivo para esta imagen (máximo 60 caracteres). El título debe ser claro, conciso y que capture la esencia del producto mostrado.",
+          descriptionPrompt: "Describe detalladamente lo que ves en esta imagen. Incluye características visuales, colores, materiales, estilo y cualquier detalle relevante del producto (2-3 oraciones).",
+          captionPrompt: "Crea una leyenda corta y atractiva para esta imagen que resalte las características principales del producto (1 oración).",
+          altTextPrompt: "Genera un texto alternativo descriptivo para accesibilidad que describa claramente el contenido de la imagen (máximo 125 caracteres).",
+          useCustomPrompts: false
+        };
+        await databaseService.saveUserPromptSettings(authState.currentUser.username, defaultSettings);
+        setPromptSettings(defaultSettings);
+        
+        addNotification({
+          type: 'success',
+          title: 'Configuración limpiada',
+          message: 'La configuración de prompts se ha restablecido a los valores predeterminados'
+        });
+      }
+    } catch (error) {
+      console.error('Error clearing prompt settings:', error);
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'No se pudo limpiar la configuración de prompts'
+      });
+    }
+  }, [authState.currentUser]);
 
   const addNotification = useCallback((notification: Omit<Notification, 'id'>) => {
     const id = Date.now().toString();
@@ -180,19 +248,19 @@ function App() {
   }, [images, addNotification]);
 
   // Función para manejar cambios en configuración de conversión
-  const handleConversionSettingsChange = useCallback((newSettings: ConversionSettings) => {
+  const handleConversionSettingsChange = useCallback((newSettings: UserConversionSettings) => {
     setSettings(newSettings);
     saveConversionSettings(newSettings);
   }, [saveConversionSettings]);
 
   // Función para manejar cambios en configuración de ChatGPT
-  const handleChatGPTSettingsChange = useCallback((newSettings: ChatGPTSettings) => {
+  const handleChatGPTSettingsChange = useCallback((newSettings: UserChatGPTSettings) => {
     setChatGPTSettings(newSettings);
     saveChatGPTSettings(newSettings);
   }, [saveChatGPTSettings]);
 
   // Función para manejar cambios en configuración de prompts
-  const handlePromptSettingsChange = useCallback((newSettings: PromptSettings) => {
+  const handlePromptSettingsChange = useCallback((newSettings: UserPromptSettings) => {
     setPromptSettings(newSettings);
     savePromptSettings(newSettings);
   }, [savePromptSettings]);
@@ -729,6 +797,7 @@ function App() {
       <ChatGPTConfig
         settings={chatGPTSettings}
         onSettingsChange={handleChatGPTSettingsChange}
+        onClearSettings={clearChatGPTSettings}
         onBack={() => setCurrentPage('main')}
       />
     );
@@ -739,6 +808,7 @@ function App() {
       <PromptConfig
         settings={promptSettings}
         onSettingsChange={handlePromptSettingsChange}
+        onClearSettings={clearPromptSettings}
         onBack={() => setCurrentPage('main')}
       />
     );

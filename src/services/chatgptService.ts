@@ -1,4 +1,4 @@
-import { ChatGPTSettings, ImageData, PromptSettings, UsageRecord } from '../types';
+import { ChatGPTSettings, ImageData, PromptSettings, UsageRecord, UserChatGPTSettings, UserPromptSettings } from '../types';
 import { authService } from './authService';
 
 export interface ChatGPTResponse {
@@ -9,7 +9,7 @@ export interface ChatGPTResponse {
 }
 
 export class ChatGPTService {
-  private settings: ChatGPTSettings;
+  private settings: UserChatGPTSettings;
 
   // Precios por token para cada modelo (en USD)
   private static readonly MODEL_PRICING = {
@@ -20,7 +20,7 @@ export class ChatGPTService {
     'o3': { input: 0.05, output: 0.15 }
   };
 
-  constructor(settings: ChatGPTSettings) {
+  constructor(settings: UserChatGPTSettings) {
     this.settings = settings;
   }
 
@@ -54,7 +54,7 @@ export class ChatGPTService {
     }
   }
 
-  async generateImageDescription(imageData: ImageData, productDescription?: string, namePrefix?: string, promptSettings?: PromptSettings): Promise<ChatGPTResponse> {
+  async generateImageDescription(imageData: ImageData, productDescription?: string, namePrefix?: string, promptSettings?: UserPromptSettings): Promise<ChatGPTResponse> {
     console.log('🔍 Iniciando generación de descripción para:', imageData.name);
     console.log('🔧 Configuración ChatGPT:', {
       enabled: this.settings.enabled,

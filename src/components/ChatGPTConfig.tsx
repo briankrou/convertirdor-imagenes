@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Key, Brain, CheckCircle, XCircle, Eye, EyeOff } from 'lucide-react';
-import { ChatGPTSettings } from '../types';
+import { ArrowLeft, Key, Brain, CheckCircle, XCircle, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { UserChatGPTSettings } from '../types';
 
 interface ChatGPTConfigProps {
-  settings: ChatGPTSettings;
-  onSettingsChange: (settings: ChatGPTSettings) => void;
+  settings: UserChatGPTSettings;
+  onSettingsChange: (settings: UserChatGPTSettings) => void;
+  onClearSettings: () => void;
   onBack: () => void;
 }
 
 export const ChatGPTConfig: React.FC<ChatGPTConfigProps> = ({
   settings,
   onSettingsChange,
+  onClearSettings,
   onBack
 }) => {
   const [showApiKey, setShowApiKey] = useState(false);
@@ -52,8 +54,14 @@ export const ChatGPTConfig: React.FC<ChatGPTConfigProps> = ({
     }
   ];
 
-  const handleModelChange = (model: ChatGPTSettings['model']) => {
+  const handleModelChange = (model: UserChatGPTSettings['model']) => {
     onSettingsChange({ ...settings, model });
+  };
+
+  const handleClearSettings = () => {
+    if (window.confirm('¿Estás seguro de que quieres limpiar tu configuración de ChatGPT? Esta acción restablecerá todos los valores a los predeterminados.')) {
+      onClearSettings();
+    }
   };
 
   const handleApiKeyChange = (apiKey: string) => {
@@ -352,6 +360,27 @@ export const ChatGPTConfig: React.FC<ChatGPTConfigProps> = ({
               </div>
             </>
           )}
+
+          {/* Botón de Limpiar Configuración */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Limpiar Configuración
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Restablece tu configuración de ChatGPT a los valores predeterminados
+                </p>
+              </div>
+              <button
+                onClick={handleClearSettings}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors flex items-center space-x-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Limpiar Configuración</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
