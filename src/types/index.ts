@@ -46,6 +46,17 @@ export interface SMTPSettings {
   enabled: boolean;
 }
 
+export interface GmailApiSettings {
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+  accessToken?: string;
+  refreshToken?: string;
+  fromEmail: string;
+  fromName: string;
+  enabled: boolean;
+}
+
 export interface ImageDescription {
   id: number;
   imageName: string;
@@ -159,6 +170,7 @@ export interface UserSettings {
   promptSettings: UserPromptSettings;
   conversionSettings: UserConversionSettings;
   smtpSettings: UserSMTPSettings;
+  gmailApiSettings: GmailApiSettings;
   preferences: UserPreferences;
 }
 

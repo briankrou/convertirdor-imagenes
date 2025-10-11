@@ -1,33 +1,31 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Mail, Server, Key, Eye, EyeOff, Trash2, TestTube, CheckCircle, XCircle, Send } from 'lucide-react';
-import { UserSMTPSettings } from '../types';
+import { ArrowLeft, Mail, Key, Eye, EyeOff, CheckCircle, XCircle, Send, ExternalLink, RefreshCw } from 'lucide-react';
+import { GmailApiSettings } from '../types';
 import { Popup } from './Popup';
 import { usePopup } from '../hooks/usePopup';
-import { browserEmailService } from '../services/browserEmailService';
-import { SMTP_PRESETS, applySMTPPreset } from '../config/smtpConfig';
+import { gmailApiService } from '../services/gmailApiService';
 
-interface SMTPConfigProps {
-  settings: UserSMTPSettings;
-  onSettingsChange: (settings: UserSMTPSettings) => void;
-  onClearSettings: () => void;
+interface GmailApiConfigProps {
+  settings: GmailApiSettings;
+  onSettingsChange: (settings: GmailApiSettings) => void;
   onBack: () => void;
 }
 
-export const SMTPConfig: React.FC<SMTPConfigProps> = ({
+export const GmailApiConfig: React.FC<GmailApiConfigProps> = ({
   settings,
   onSettingsChange,
-  onClearSettings,
   onBack
 }) => {
-  const [showPassword, setShowPassword] = useState(false);
+  const [showClientSecret, setShowClientSecret] = useState(false);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [isTestingEmail, setIsTestingEmail] = useState(false);
   const [emailTestStatus, setEmailTestStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [testEmailAddress, setTestEmailAddress] = useState('');
+  const [isAuthorizing, setIsAuthorizing] = useState(false);
   const { popupState, hidePopup, showConfirm } = usePopup();
 
-  const handleInputChange = (field: keyof UserSMTPSettings, value: string | number | boolean) => {
+  const handleInputChange = (field: keyof GmailApiSettings, value: string | boolean) => {
     onSettingsChange({
       ...settings,
       [field]: value
@@ -36,24 +34,20 @@ export const SMTPConfig: React.FC<SMTPConfigProps> = ({
     setEmailTestStatus('idle');
   };
 
-  const handleClearSettings = () => {
-    showConfirm(
-      'Limpiar configuración SMTP',
-      '¿Estás seguro de que quieres limpiar tu configuración SMTP? Esta acción restablecerá todos los valores a los predeterminados.',
-      () => {
-        onClearSettings();
-      },
-      {
-        confirmText: 'Limpiar',
-        cancelText: 'Cancelar',
-        type: 'warning'
-      }
-    );
-  };
-
   const handleTestConnection = async () => {
-    if (!settings.host || !settings.port || !settings.username || !settings.password) {
+    if (!settings.clientId || !settings.clientSecret || !settings.fromEmail || !settings.fromName) {
       setConnectionStatus('error');
+      showConfirm(
+        'Configuración incompleta',
+        'Por favor completa la configuración de Gmail API (Client ID, Client Secret, Email del remitente y Nombre del remitente) antes de probar la conexión.',
+        () => {},
+        {
+          confirmText: 'Entendido',
+          cancelText: '',
+          type: 'error',
+          showButtons: false
+        }
+      );
       return;
     }
 
@@ -61,19 +55,30 @@ export const SMTPConfig: React.FC<SMTPConfigProps> = ({
     setConnectionStatus('idle');
 
     try {
-      // Configurar el servicio de email con la configuración actual
-      browserEmailService.setSMTPSettings(settings);
+      // Configurar el servicio de Gmail API
+      gmailApiService.setGmailConfig(settings);
       
       // Probar la conexión
-      const result = await browserEmailService.testConnection();
+      const result = await gmailApiService.testConnection();
       
       if (result.success) {
         setConnectionStatus('success');
+        showConfirm(
+          'Conexión exitosa',
+          'La conexión con Gmail API se estableció correctamente. Ya puedes enviar emails.',
+          () => {},
+          {
+            confirmText: 'Entendido',
+            cancelText: '',
+            type: 'success',
+            showButtons: false
+          }
+        );
       } else {
         setConnectionStatus('error');
         showConfirm(
-          'Error de conexión SMTP',
-          `No se pudo conectar al servidor SMTP: ${result.error}`,
+          'Error de conexión',
+          `No se pudo conectar con Gmail API: ${result.error}`,
           () => {},
           {
             confirmText: 'Entendido',
@@ -87,7 +92,7 @@ export const SMTPConfig: React.FC<SMTPConfigProps> = ({
       setConnectionStatus('error');
       showConfirm(
         'Error inesperado',
-        `Ocurrió un error inesperado al probar la conexión: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+        `Ocurrió un error inesperado: ${error instanceof Error ? error.message : 'Error desconocido'}`,
         () => {},
         {
           confirmText: 'Entendido',
@@ -101,8 +106,107 @@ export const SMTPConfig: React.FC<SMTPConfigProps> = ({
     }
   };
 
+  const handleAuthorize = async () => {
+    if (!settings.clientId || !settings.clientSecret) {
+      showConfirm(
+        'Configuración incompleta',
+        'Por favor configura el Client ID y Client Secret antes de autorizar.',
+        () => {},
+        {
+          confirmText: 'Entendido',
+          cancelText: '',
+          type: 'error',
+          showButtons: false
+        }
+      );
+      return;
+    }
+
+    setIsAuthorizing(true);
+    
+    try {
+      gmailApiService.setGmailConfig(settings);
+      const authUrl = gmailApiService.getAuthUrl();
+      
+      // Abrir ventana de autorización
+      const authWindow = window.open(authUrl, 'gmail-auth', 'width=500,height=600');
+      
+      // Escuchar el mensaje de la ventana de autorización
+      const messageListener = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return;
+        
+        if (event.data.type === 'GMAIL_AUTH_SUCCESS') {
+          const { accessToken, refreshToken } = event.data;
+          
+          onSettingsChange({
+            ...settings,
+            accessToken,
+            refreshToken
+          });
+          
+          authWindow?.close();
+          window.removeEventListener('message', messageListener);
+          setIsAuthorizing(false);
+          
+          showConfirm(
+            'Autorización exitosa',
+            'La aplicación ha sido autorizada correctamente. Ahora puedes enviar emails.',
+            () => {},
+            {
+              confirmText: 'Entendido',
+              cancelText: '',
+              type: 'success',
+              showButtons: false
+            }
+          );
+        } else if (event.data.type === 'GMAIL_AUTH_ERROR') {
+          authWindow?.close();
+          window.removeEventListener('message', messageListener);
+          setIsAuthorizing(false);
+          
+          showConfirm(
+            'Error de autorización',
+            `Error al autorizar: ${event.data.error}`,
+            () => {},
+            {
+              confirmText: 'Entendido',
+              cancelText: '',
+              type: 'error',
+              showButtons: false
+            }
+          );
+        }
+      };
+      
+      window.addEventListener('message', messageListener);
+      
+      // Timeout para cerrar la ventana si no hay respuesta
+      setTimeout(() => {
+        if (authWindow && !authWindow.closed) {
+          authWindow.close();
+          window.removeEventListener('message', messageListener);
+          setIsAuthorizing(false);
+        }
+      }, 300000); // 5 minutos
+      
+    } catch (error) {
+      setIsAuthorizing(false);
+      showConfirm(
+        'Error de autorización',
+        `Error al iniciar autorización: ${error instanceof Error ? error.message : 'Error desconocido'}`,
+        () => {},
+        {
+          confirmText: 'Entendido',
+          cancelText: '',
+          type: 'error',
+          showButtons: false
+        }
+      );
+    }
+  };
+
   const handleTestEmail = async () => {
-    if (!testEmailAddress || !browserEmailService.isValidEmail(testEmailAddress)) {
+    if (!testEmailAddress || !gmailApiService.isValidEmail(testEmailAddress)) {
       setEmailTestStatus('error');
       showConfirm(
         'Error en el email de prueba',
@@ -118,27 +222,11 @@ export const SMTPConfig: React.FC<SMTPConfigProps> = ({
       return;
     }
 
-    if (!settings.host || !settings.port || !settings.username || !settings.password) {
+    if (!settings.accessToken) {
       setEmailTestStatus('error');
       showConfirm(
-        'Configuración del servidor incompleta',
-        'Por favor completa la configuración del servidor SMTP (host, puerto, usuario y contraseña) antes de enviar un email de prueba.',
-        () => {},
-        {
-          confirmText: 'Entendido',
-          cancelText: '',
-          type: 'error',
-          showButtons: false
-        }
-      );
-      return;
-    }
-
-    if (!settings.fromEmail || !settings.fromName) {
-      setEmailTestStatus('error');
-      showConfirm(
-        'Configuración del remitente incompleta',
-        'Por favor completa la configuración del remitente (email y nombre) en la sección "Configuración del Remitente" antes de enviar un email de prueba.',
+        'No autorizado',
+        'Necesitas autorizar la aplicación con Gmail antes de enviar emails. Haz clic en "Autorizar con Gmail".',
         () => {},
         {
           confirmText: 'Entendido',
@@ -154,14 +242,14 @@ export const SMTPConfig: React.FC<SMTPConfigProps> = ({
     setEmailTestStatus('idle');
 
     try {
-      // Configurar el servicio de email con la configuración actual
-      browserEmailService.setSMTPSettings(settings);
+      // Configurar el servicio de Gmail API
+      gmailApiService.setGmailConfig(settings);
       
       // Generar una contraseña temporal para el email de prueba
-      const tempPassword = browserEmailService.generateTemporaryPassword(8);
+      const tempPassword = gmailApiService.generateTemporaryPassword(8);
       
       // Enviar email de prueba
-      const result = await browserEmailService.sendPasswordRecoveryEmail({
+      const result = await gmailApiService.sendPasswordRecoveryEmail({
         to: testEmailAddress,
         username: 'Usuario de Prueba',
         newPassword: tempPassword,
@@ -172,7 +260,7 @@ export const SMTPConfig: React.FC<SMTPConfigProps> = ({
         setEmailTestStatus('success');
         showConfirm(
           'Email de prueba enviado',
-          `El email de prueba se ha enviado exitosamente a ${testEmailAddress}. Revisa tu bandeja de entrada.`,
+          `El email de prueba se ha enviado exitosamente a ${testEmailAddress} usando Gmail API. Revisa tu bandeja de entrada.`,
           () => {},
           {
             confirmText: 'Entendido',
@@ -220,7 +308,7 @@ export const SMTPConfig: React.FC<SMTPConfigProps> = ({
       case 'error':
         return <XCircle className="w-5 h-5 text-red-500" />;
       default:
-        return <Server className="w-5 h-5 text-gray-400" />;
+        return <Mail className="w-5 h-5 text-gray-400" />;
     }
   };
 
@@ -271,13 +359,13 @@ export const SMTPConfig: React.FC<SMTPConfigProps> = ({
           </button>
           
           <div className="flex items-center space-x-3">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <Mail className="w-8 h-8 text-blue-600" />
+            <div className="p-3 bg-red-100 rounded-lg">
+              <Mail className="w-8 h-8 text-red-600" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Configuración SMTP</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Configuración Gmail API</h1>
               <p className="text-gray-600 mt-1">
-                Configura el servidor de correo para recuperación de contraseñas
+                Configura la Gmail API para envío de emails moderno y seguro
               </p>
             </div>
           </div>
@@ -302,16 +390,35 @@ export const SMTPConfig: React.FC<SMTPConfigProps> = ({
                 </div>
               </div>
               
-              <button
-                onClick={handleTestConnection}
-                disabled={isTestingConnection || !settings.host || !settings.port || !settings.username || !settings.password}
-                className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
-              >
-                <TestTube className="w-4 h-4" />
-                <span>
-                  {isTestingConnection ? 'Probando conexión...' : 'Probar conexión'}
-                </span>
-              </button>
+              <div className="space-y-4">
+                <button
+                  onClick={handleTestConnection}
+                  disabled={isTestingConnection || !settings.clientId || !settings.clientSecret}
+                  className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span>
+                    {isTestingConnection ? 'Probando conexión...' : 'Probar conexión'}
+                  </span>
+                </button>
+
+                {!settings.accessToken && (
+                  <button
+                    onClick={handleAuthorize}
+                    disabled={isAuthorizing || !settings.clientId || !settings.clientSecret}
+                    className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+                  >
+                    {isAuthorizing ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <ExternalLink className="w-4 h-4" />
+                    )}
+                    <span>
+                      {isAuthorizing ? 'Autorizando...' : 'Autorizar con Gmail'}
+                    </span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Prueba de envío de email */}
@@ -343,13 +450,13 @@ export const SMTPConfig: React.FC<SMTPConfigProps> = ({
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Se enviará un email de recuperación de contraseña de prueba a esta dirección
+                    Se enviará un email de recuperación de contraseña de prueba usando Gmail API
                   </p>
                 </div>
                 
                 <button
                   onClick={handleTestEmail}
-                  disabled={isTestingEmail || !testEmailAddress || !settings.host || !settings.port || !settings.username || !settings.password || !settings.fromEmail || !settings.fromName}
+                  disabled={isTestingEmail || !testEmailAddress || !settings.accessToken}
                   className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
                 >
                   <Send className="w-4 h-4" />
@@ -360,115 +467,71 @@ export const SMTPConfig: React.FC<SMTPConfigProps> = ({
               </div>
             </div>
 
-            {/* Configuración del servidor */}
+            {/* Configuración de la API */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold text-gray-900">Configuración del Servidor</h2>
-                <div className="flex items-center space-x-2">
-                  <label className="text-sm font-medium text-gray-700">Preset:</label>
-                  <select
-                    onChange={(e) => {
-                      const preset = e.target.value as keyof typeof SMTP_PRESETS;
-                      if (preset !== 'custom') {
-                        const presetConfig = applySMTPPreset(preset);
-                        onSettingsChange({
-                          ...settings,
-                          ...presetConfig
-                        });
-                        setConnectionStatus('idle');
-                        setEmailTestStatus('idle');
-                      }
-                    }}
-                    className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="custom">Personalizado</option>
-                    <option value="posteio">Poste.io</option>
-                    <option value="gmail">Gmail</option>
-                    <option value="outlook">Outlook</option>
-                    <option value="yahoo">Yahoo</option>
-                  </select>
-                </div>
-              </div>
+              <h2 className="text-lg font-semibold text-gray-900 mb-6">Configuración de Gmail API</h2>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Host del servidor SMTP
+                    Client ID
                   </label>
                   <input
                     type="text"
-                    value={settings.host}
-                    onChange={(e) => handleInputChange('host', e.target.value)}
-                    placeholder="smtp.gmail.com"
+                    value={settings.clientId}
+                    onChange={(e) => handleInputChange('clientId', e.target.value)}
+                    placeholder="123456789-abcdefg.apps.googleusercontent.com"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Obtén este valor desde Google Cloud Console
+                  </p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Puerto
-                  </label>
-                  <input
-                    type="number"
-                    value={settings.port}
-                    onChange={(e) => handleInputChange('port', parseInt(e.target.value) || 587)}
-                    placeholder="587"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Usuario
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.username}
-                    onChange={(e) => handleInputChange('username', e.target.value)}
-                    placeholder="tu-email@gmail.com"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Contraseña
+                    Client Secret
                   </label>
                   <div className="relative">
                     <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={settings.password}
-                      onChange={(e) => handleInputChange('password', e.target.value)}
-                      placeholder="Tu contraseña de aplicación"
+                      type={showClientSecret ? 'text' : 'password'}
+                      value={settings.clientSecret}
+                      onChange={(e) => handleInputChange('clientSecret', e.target.value)}
+                      placeholder="GOCSPX-abcdefghijklmnop"
                       className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                     <button
                       type="button"
-                      onClick={() => setShowPassword(!showPassword)}
+                      onClick={() => setShowClientSecret(!showClientSecret)}
                       className="absolute inset-y-0 right-0 pr-3 flex items-center"
                     >
-                      {showPassword ? (
+                      {showClientSecret ? (
                         <EyeOff className="w-4 h-4 text-gray-400" />
                       ) : (
                         <Eye className="w-4 h-4 text-gray-400" />
                       )}
                     </button>
                   </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Obtén este valor desde Google Cloud Console
+                  </p>
                 </div>
-              </div>
 
-              <div className="mt-6">
-                <label className="flex items-center space-x-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Redirect URI
+                  </label>
                   <input
-                    type="checkbox"
-                    checked={settings.secure}
-                    onChange={(e) => handleInputChange('secure', e.target.checked)}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    type="text"
+                    value={settings.redirectUri}
+                    onChange={(e) => handleInputChange('redirectUri', e.target.value)}
+                    placeholder="http://localhost:3000/auth/callback"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
-                  <span className="text-sm font-medium text-gray-700">
-                    Usar conexión segura (TLS/SSL)
-                  </span>
-                </label>
+                  <p className="text-xs text-gray-500 mt-1">
+                    URL de redirección configurada en Google Cloud Console
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -496,25 +559,13 @@ export const SMTPConfig: React.FC<SMTPConfigProps> = ({
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Email del remitente
                   </label>
-                  <div className="flex space-x-2">
-                    <input
-                      type="email"
-                      value={settings.fromEmail}
-                      onChange={(e) => handleInputChange('fromEmail', e.target.value)}
-                      placeholder="admin@koko.toys"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                    <button
-                      onClick={() => {
-                        handleInputChange('fromEmail', 'admin@koko.toys');
-                        handleInputChange('fromName', 'Koko.toys Admin');
-                      }}
-                      className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-                      title="Usar configuración de Koko.toys"
-                    >
-                      Koko.toys
-                    </button>
-                  </div>
+                  <input
+                    type="email"
+                    value={settings.fromEmail}
+                    onChange={(e) => handleInputChange('fromEmail', e.target.value)}
+                    placeholder="admin@koko.toys"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
                 </div>
 
                 <div>
@@ -525,7 +576,7 @@ export const SMTPConfig: React.FC<SMTPConfigProps> = ({
                     type="text"
                     value={settings.fromName}
                     onChange={(e) => handleInputChange('fromName', e.target.value)}
-                    placeholder="Sistema de Recuperación"
+                    placeholder="Koko.toys Admin"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
@@ -541,7 +592,7 @@ export const SMTPConfig: React.FC<SMTPConfigProps> = ({
               
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">SMTP Habilitado</span>
+                  <span className="text-sm text-gray-600">Gmail API Habilitada</span>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
@@ -554,20 +605,20 @@ export const SMTPConfig: React.FC<SMTPConfigProps> = ({
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Conexión segura</span>
+                  <span className="text-sm text-gray-600">Autorizado</span>
                   <span className={`text-sm font-medium ${
-                    settings.secure ? 'text-green-600' : 'text-gray-500'
+                    settings.accessToken ? 'text-green-600' : 'text-gray-500'
                   }`}>
-                    {settings.secure ? 'Habilitada' : 'Deshabilitada'}
+                    {settings.accessToken ? 'Sí' : 'No'}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Servidor configurado</span>
+                  <span className="text-sm text-gray-600">API configurada</span>
                   <span className={`text-sm font-medium ${
-                    settings.host && settings.port ? 'text-green-600' : 'text-gray-500'
+                    settings.clientId && settings.clientSecret ? 'text-green-600' : 'text-gray-500'
                   }`}>
-                    {settings.host && settings.port ? 'Configurado' : 'Sin configurar'}
+                    {settings.clientId && settings.clientSecret ? 'Sí' : 'No'}
                   </span>
                 </div>
               </div>
@@ -579,74 +630,25 @@ export const SMTPConfig: React.FC<SMTPConfigProps> = ({
               
               <div className="space-y-4 text-sm text-blue-800">
                 <div>
-                  <strong>Poste.io:</strong>
+                  <strong>Gmail API:</strong>
                   <ul className="ml-4 mt-1 space-y-1">
-                    <li>• Host: mail.koko.toys (tu dominio)</li>
-                    <li>• Puerto: 587 (TLS) o 465 (SSL)</li>
-                    <li>• Usuario: admin@koko.toys</li>
-                    <li>• Servidor de correo confiable y seguro</li>
-                  </ul>
-                </div>
-                
-                <div>
-                  <strong>Gmail:</strong>
-                  <ul className="ml-4 mt-1 space-y-1">
-                    <li>• Host: smtp.gmail.com</li>
-                    <li>• Puerto: 587 (TLS) o 465 (SSL)</li>
-                    <li>• Requiere contraseña de aplicación</li>
-                    <li>• Activar 2FA en tu cuenta Google</li>
-                  </ul>
-                </div>
-                
-                <div>
-                  <strong>Outlook/Hotmail:</strong>
-                  <ul className="ml-4 mt-1 space-y-1">
-                    <li>• Host: smtp-mail.outlook.com</li>
-                    <li>• Puerto: 587</li>
-                    <li>• Usa tu email y contraseña normal</li>
-                  </ul>
-                </div>
-                
-                <div>
-                  <strong>Yahoo:</strong>
-                  <ul className="ml-4 mt-1 space-y-1">
-                    <li>• Host: smtp.mail.yahoo.com</li>
-                    <li>• Puerto: 587</li>
-                    <li>• Requiere contraseña de aplicación</li>
+                    <li>• Más moderna que SMTP</li>
+                    <li>• Mayor seguridad y confiabilidad</li>
+                    <li>• Mejor deliverability</li>
+                    <li>• Sin límites de envío estrictos</li>
                   </ul>
                 </div>
                 
                 <div className="pt-3 border-t border-blue-200">
-                  <strong>💡 Nota Importante:</strong>
-                  <p className="mt-1 text-xs">
-                    Esta aplicación funciona en el navegador y simula el envío de emails. 
-                    Para envío real, necesitarías configurar un backend con SMTP o usar un servicio como EmailJS.
-                  </p>
+                  <strong>💡 Pasos para configurar:</strong>
+                  <ol className="ml-4 mt-1 space-y-1 list-decimal">
+                    <li>Crear proyecto en Google Cloud Console</li>
+                    <li>Habilitar Gmail API</li>
+                    <li>Crear credenciales OAuth2</li>
+                    <li>Configurar Client ID y Secret</li>
+                    <li>Autorizar la aplicación</li>
+                  </ol>
                 </div>
-                
-                <div className="pt-2">
-                  <strong>🔧 Para Implementación Real:</strong>
-                  <ul className="ml-4 mt-1 space-y-1 text-xs">
-                    <li>• Configura un backend con nodemailer</li>
-                    <li>• Usa EmailJS para envío desde frontend</li>
-                    <li>• Implementa una API de email personalizada</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            {/* Acciones */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Acciones</h3>
-              
-              <div className="space-y-3">
-                <button
-                  onClick={handleClearSettings}
-                  className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Limpiar Configuración</span>
-                </button>
               </div>
             </div>
           </div>

@@ -6,7 +6,7 @@ import { DropZone } from './components/DropZone';
 import { NotificationContainer } from './components/NotificationContainer';
 import { ChatGPTConfig } from './components/ChatGPTConfig';
 import { PromptConfig } from './components/PromptConfig';
-import { SMTPConfig } from './components/SMTPConfig';
+import { GmailApiConfig } from './components/GmailApiConfig';
 import { CurrencyAPIConfig } from './components/CurrencyAPIConfig';
 import { UsageHistory } from './components/UsageHistory';
 import { Login } from './components/Login';
@@ -14,7 +14,7 @@ import { UserManagement } from './components/UserManagement';
 import { ProfileConfig } from './components/ProfileConfig';
 import { Popup } from './components/Popup';
 import { usePopup } from './hooks/usePopup';
-import { ImageData, ImageDescription, Notification, AuthState, UserConversionSettings, UserChatGPTSettings, UserPromptSettings, UserSMTPSettings } from './types';
+import { ImageData, ImageDescription, Notification, AuthState, UserConversionSettings, UserChatGPTSettings, UserPromptSettings, GmailApiSettings } from './types';
 // import { convertImages } from './utils/imageConverter'; // No se está usando
 import { ChatGPTService } from './services/chatgptService';
 import { databaseService } from './services/databaseService';
@@ -48,12 +48,10 @@ function App() {
     altTextPrompt: "Genera un texto alternativo descriptivo para accesibilidad que describa claramente el contenido de la imagen (máximo 125 caracteres).",
     useCustomPrompts: false
   });
-  const [smtpSettings, setSmtpSettings] = useState<UserSMTPSettings>({
-    host: '',
-    port: 587,
-    secure: false,
-    username: '',
-    password: '',
+  const [gmailApiSettings, setGmailApiSettings] = useState<GmailApiSettings>({
+    clientId: '',
+    clientSecret: '',
+    redirectUri: 'http://localhost:3000/auth/callback',
     fromEmail: '',
     fromName: 'Sistema de Recuperación',
     enabled: false
@@ -62,7 +60,7 @@ function App() {
   const [convertedImages, setConvertedImages] = useState<{ blob: Blob; filename: string }[]>([]);
   const [isConverting, setIsConverting] = useState(false);
   const [isGeneratingDescriptions, setIsGeneratingDescriptions] = useState(false);
-  const [currentPage, setCurrentPage] = useState<'main' | 'chatgpt-config' | 'prompt-config' | 'smtp-config' | 'currency-api-config' | 'usage-history' | 'user-management' | 'profile-config'>('main');
+  const [currentPage, setCurrentPage] = useState<'main' | 'chatgpt-config' | 'prompt-config' | 'gmail-api-config' | 'currency-api-config' | 'usage-history' | 'user-management' | 'profile-config'>('main');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [authState, setAuthState] = useState<AuthState>({
@@ -84,12 +82,12 @@ function App() {
         const userConversionSettings = await databaseService.getUserConversionSettings(username);
         const userChatGPTSettings = await databaseService.getUserChatGPTSettings(username);
         const userPromptSettings = await databaseService.getUserPromptSettings(username);
-        const userSMTPSettings = await databaseService.getUserSMTPSettings(username);
+        const userGmailApiSettings = await databaseService.getUserGmailApiSettings(username);
         
         setSettings(userConversionSettings);
         setChatGPTSettings(userChatGPTSettings);
         setPromptSettings(userPromptSettings);
-        setSmtpSettings(userSMTPSettings);
+        setGmailApiSettings(userGmailApiSettings);
         
         addNotification({
           type: 'success',
@@ -249,61 +247,29 @@ function App() {
     }
   }, []);
 
-  // Función para manejar cambios en configuración SMTP
-  const handleSMTPSettingsChange = useCallback(async (newSettings: UserSMTPSettings) => {
+  // Función para manejar cambios en configuración Gmail API
+  const handleGmailApiSettingsChange = useCallback(async (newSettings: GmailApiSettings) => {
     try {
       if (authState.currentUser) {
-        await databaseService.saveUserSMTPSettings(authState.currentUser.username, newSettings);
-        setSmtpSettings(newSettings);
+        await databaseService.saveUserGmailApiSettings(authState.currentUser.username, newSettings);
+        setGmailApiSettings(newSettings);
         
         addNotification({
           type: 'success',
-          title: 'Configuración SMTP guardada',
-          message: 'La configuración del servidor de correo se ha guardado correctamente'
+          title: 'Configuración Gmail API guardada',
+          message: 'La configuración de Gmail API se ha guardado correctamente'
         });
       }
     } catch (error) {
-      console.error('Error saving SMTP settings:', error);
+      console.error('Error saving Gmail API settings:', error);
       addNotification({
         type: 'error',
         title: 'Error',
-        message: 'No se pudo guardar la configuración SMTP'
+        message: 'No se pudo guardar la configuración Gmail API'
       });
     }
   }, [authState.currentUser, addNotification]);
 
-  // Función para limpiar configuración SMTP
-  const clearSMTPSettings = useCallback(async () => {
-    try {
-      if (authState.currentUser) {
-        const defaultSettings: UserSMTPSettings = {
-          host: '',
-          port: 587,
-          secure: false,
-          username: '',
-          password: '',
-          fromEmail: '',
-          fromName: 'Sistema de Recuperación',
-          enabled: false
-        };
-        await databaseService.saveUserSMTPSettings(authState.currentUser.username, defaultSettings);
-        setSmtpSettings(defaultSettings);
-        
-        addNotification({
-          type: 'success',
-          title: 'Configuración limpiada',
-          message: 'La configuración SMTP se ha restablecido a los valores predeterminados'
-        });
-      }
-    } catch (error) {
-      console.error('Error clearing SMTP settings:', error);
-      addNotification({
-        type: 'error',
-        title: 'Error',
-        message: 'No se pudo limpiar la configuración SMTP'
-      });
-    }
-  }, [authState.currentUser, addNotification]);
 
   const removeNotification = useCallback((id: string) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
@@ -1088,12 +1054,11 @@ function App() {
     );
   }
 
-  if (currentPage === 'smtp-config') {
+  if (currentPage === 'gmail-api-config') {
     return (
-      <SMTPConfig
-        settings={smtpSettings}
-        onSettingsChange={handleSMTPSettingsChange}
-        onClearSettings={clearSMTPSettings}
+      <GmailApiConfig
+        settings={gmailApiSettings}
+        onSettingsChange={handleGmailApiSettingsChange}
         onBack={() => setCurrentPage('main')}
       />
     );
@@ -1155,7 +1120,7 @@ function App() {
       <Header 
         onChatGPTConfig={() => setCurrentPage('chatgpt-config')}
         onPromptConfig={() => setCurrentPage('prompt-config')}
-        onSMTPConfig={() => setCurrentPage('smtp-config')}
+        onGmailApiConfig={() => setCurrentPage('gmail-api-config')}
         onCurrencyAPIConfig={() => setCurrentPage('currency-api-config')}
         onClearConfig={handleClearConfig}
         onUsageHistory={() => setCurrentPage('usage-history')}

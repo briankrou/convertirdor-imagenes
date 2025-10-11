@@ -1,4 +1,4 @@
-import { UserSettings, UserChatGPTSettings, UserPromptSettings, UserConversionSettings, UserSMTPSettings, UserPreferences } from '../types';
+import { UserSettings, UserChatGPTSettings, UserPromptSettings, UserConversionSettings, UserSMTPSettings, UserPreferences, GmailApiSettings } from '../types';
 import { DatabaseSync } from '../utils/dbSync';
 
 interface DatabaseSchema {
@@ -362,6 +362,92 @@ class DatabaseService {
   async clearAllData(): Promise<void> {
     // This method is deprecated, use clearAllUserData instead
     throw new Error('This method is deprecated. Use clearAllUserData() instead.');
+  }
+
+  // Métodos para configuración Gmail API
+  async getUserGmailApiSettings(username: string): Promise<GmailApiSettings> {
+    await this.ensureInitialized();
+    
+    if (!this.data) {
+      throw new Error('Database not initialized');
+    }
+
+    const userSettings = this.data.userSettings[username];
+    if (!userSettings || !userSettings.gmailApiSettings) {
+      // Retornar configuración por defecto
+      return {
+        clientId: '',
+        clientSecret: '',
+        redirectUri: 'http://localhost:3000/auth/callback',
+        fromEmail: '',
+        fromName: 'Sistema de Recuperación',
+        enabled: false
+      };
+    }
+
+    return userSettings.gmailApiSettings;
+  }
+
+  async saveUserGmailApiSettings(username: string, settings: GmailApiSettings): Promise<void> {
+    await this.ensureInitialized();
+    
+    if (!this.data) {
+      throw new Error('Database not initialized');
+    }
+
+    // Asegurar que el usuario existe
+    if (!this.data.userSettings[username]) {
+      this.data.userSettings[username] = {
+        username,
+        chatGPTSettings: {
+          apiKey: '',
+          model: 'gpt-4o',
+          enabled: false
+        },
+        promptSettings: {
+          titlePrompt: '',
+          descriptionPrompt: '',
+          captionPrompt: '',
+          altTextPrompt: '',
+          useCustomPrompts: false
+        },
+        conversionSettings: {
+          format: 'jpeg',
+          quality: 80,
+          width: 0,
+          height: 0,
+          maintainAspectRatio: true,
+          backgroundColor: '#FFFFFF'
+        },
+        smtpSettings: {
+          host: '',
+          port: 587,
+          secure: false,
+          username: '',
+          password: '',
+          fromEmail: '',
+          fromName: 'Sistema de Recuperación',
+          enabled: false
+        },
+        gmailApiSettings: {
+          clientId: '',
+          clientSecret: '',
+          redirectUri: 'http://localhost:3000/auth/callback',
+          fromEmail: '',
+          fromName: 'Sistema de Recuperación',
+          enabled: false
+        },
+        preferences: {
+          theme: 'light',
+          language: 'es',
+          notifications: true
+        }
+      };
+    }
+
+    // Actualizar configuración Gmail API
+    this.data.userSettings[username].gmailApiSettings = settings;
+    await this.saveData();
   }
 }
 
