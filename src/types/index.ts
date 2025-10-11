@@ -67,3 +67,18 @@ export interface Notification {
   title: string;
   message: string;
 }
+
+export interface User {
+  id: string;
+  username: string;
+  password: string;
+  isRoot: boolean;
+  createdAt: string;
+  lastLogin?: string;
+}
+
+export interface AuthState {
+  isAuthenticated: boolean;
+  currentUser: User | null;
+  isLoading: boolean;
+}

@@ -1,14 +1,25 @@
 import React from 'react';
-import { Image, Settings, Brain, FileText, Trash2, BarChart3 } from 'lucide-react';
+import { Image, Settings, Brain, FileText, Trash2, BarChart3, Users, LogOut } from 'lucide-react';
 
 interface HeaderProps {
   onChatGPTConfig?: () => void;
   onPromptConfig?: () => void;
   onClearConfig?: () => void;
   onUsageHistory?: () => void;
+  onUserManagement?: () => void;
+  onLogout?: () => void;
+  currentUser?: { username: string; isRoot: boolean } | null;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onChatGPTConfig, onPromptConfig, onClearConfig, onUsageHistory }) => {
+export const Header: React.FC<HeaderProps> = ({ 
+  onChatGPTConfig, 
+  onPromptConfig, 
+  onClearConfig, 
+  onUsageHistory, 
+  onUserManagement, 
+  onLogout, 
+  currentUser 
+}) => {
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-0 flex items-center justify-between shadow-sm">
       <div className="flex items-center space-x-3">
@@ -43,6 +54,15 @@ export const Header: React.FC<HeaderProps> = ({ onChatGPTConfig, onPromptConfig,
         >
           <BarChart3 className="w-5 h-5" />
         </button>
+        {currentUser?.isRoot && (
+          <button 
+            onClick={onUserManagement}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Gestión de Usuarios"
+          >
+            <Users className="w-5 h-5" />
+          </button>
+        )}
         <button 
           onClick={onClearConfig}
           className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -50,8 +70,12 @@ export const Header: React.FC<HeaderProps> = ({ onChatGPTConfig, onPromptConfig,
         >
           <Trash2 className="w-5 h-5" />
         </button>
-        <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-          <Settings className="w-5 h-5" />
+        <button 
+          onClick={onLogout}
+          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          title="Cerrar Sesión"
+        >
+          <LogOut className="w-5 h-5" />
         </button>
       </div>
     </header>

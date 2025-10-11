@@ -7,10 +7,13 @@ import { NotificationContainer } from './components/NotificationContainer';
 import { ChatGPTConfig } from './components/ChatGPTConfig';
 import { PromptConfig } from './components/PromptConfig';
 import { UsageHistory } from './components/UsageHistory';
-import { ImageData, ConversionSettings, ChatGPTSettings, PromptSettings, ImageDescription, Notification } from './types';
+import { Login } from './components/Login';
+import { UserManagement } from './components/UserManagement';
+import { ImageData, ConversionSettings, ChatGPTSettings, PromptSettings, ImageDescription, Notification, AuthState } from './types';
 import { convertImages } from './utils/imageConverter';
 import { ChatGPTService } from './services/chatgptService';
 import { databaseService } from './services/databaseService';
+import { authService } from './services/authService';
 
 function App() {
   const [images, setImages] = useState<ImageData[]>([]);
@@ -37,26 +40,38 @@ function App() {
   const [convertedImages, setConvertedImages] = useState<{ blob: Blob; filename: string }[]>([]);
   const [isConverting, setIsConverting] = useState(false);
   const [isGeneratingDescriptions, setIsGeneratingDescriptions] = useState(false);
-  const [currentPage, setCurrentPage] = useState<'main' | 'chatgpt-config' | 'prompt-config' | 'usage-history'>('main');
+  const [currentPage, setCurrentPage] = useState<'main' | 'chatgpt-config' | 'prompt-config' | 'usage-history' | 'user-management'>('main');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [authState, setAuthState] = useState<AuthState>({
+    isAuthenticated: false,
+    currentUser: null,
+    isLoading: true
+  });
 
-  // Cargar configuración al inicializar
+  // Cargar configuración y verificar autenticación al inicializar
   useEffect(() => {
     const loadConfiguration = async () => {
       try {
         setIsLoading(true);
-        const allSettings = await databaseService.getAllSettings();
         
-        setSettings(allSettings.conversionSettings);
-        setChatGPTSettings(allSettings.chatGPTSettings);
-        setPromptSettings(allSettings.promptSettings);
+        // Verificar autenticación
+        const auth = authService.getAuthState();
+        setAuthState(auth);
         
-        addNotification({
-          type: 'success',
-          title: 'Configuración cargada',
-          message: 'Se cargó la configuración guardada correctamente'
-        });
+        if (auth.isAuthenticated) {
+          const allSettings = await databaseService.getAllSettings();
+          
+          setSettings(allSettings.conversionSettings);
+          setChatGPTSettings(allSettings.chatGPTSettings);
+          setPromptSettings(allSettings.promptSettings);
+          
+          addNotification({
+            type: 'success',
+            title: 'Configuración cargada',
+            message: 'Se cargó la configuración guardada correctamente'
+          });
+        }
       } catch (error) {
         console.error('Error loading configuration:', error);
         addNotification({
@@ -182,6 +197,32 @@ function App() {
     savePromptSettings(newSettings);
   }, [savePromptSettings]);
 
+
+  // Funciones de autenticación
+  const handleLoginSuccess = useCallback(() => {
+    const auth = authService.getAuthState();
+    setAuthState(auth);
+    addNotification({
+      type: 'success',
+      title: 'Bienvenido',
+      message: `Hola ${auth.currentUser?.username}!`
+    });
+  }, [addNotification]);
+
+  const handleLogout = useCallback(() => {
+    authService.logout();
+    setAuthState({
+      isAuthenticated: false,
+      currentUser: null,
+      isLoading: false
+    });
+    setCurrentPage('main');
+    addNotification({
+      type: 'info',
+      title: 'Sesión cerrada',
+      message: 'Has cerrado sesión correctamente'
+    });
+  }, [addNotification]);
 
   // Función para limpiar toda la configuración
   const handleClearConfig = useCallback(async () => {
@@ -692,16 +733,29 @@ function App() {
     );
   }
 
+  if (currentPage === 'user-management') {
+    return (
+      <UserManagement
+        onBack={() => setCurrentPage('main')}
+      />
+    );
+  }
+
   // Mostrar pantalla de carga mientras se inicializa
-  if (isLoading) {
+  if (isLoading || authState.isLoading) {
     return (
       <div className="h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando configuración...</p>
+          <p className="text-gray-600">Cargando...</p>
         </div>
       </div>
     );
+  }
+
+  // Mostrar login si no está autenticado
+  if (!authState.isAuthenticated) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
   }
 
   return (
@@ -711,6 +765,9 @@ function App() {
         onPromptConfig={() => setCurrentPage('prompt-config')}
         onClearConfig={handleClearConfig}
         onUsageHistory={() => setCurrentPage('usage-history')}
+        onUserManagement={() => setCurrentPage('user-management')}
+        onLogout={handleLogout}
+        currentUser={authState.currentUser}
       />
       
       <div className="flex-1 flex overflow-hidden">
