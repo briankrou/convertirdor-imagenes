@@ -6,9 +6,13 @@ class AuthService {
   private users: User[] = [];
 
   private constructor() {
-    this.initializeDefaultUsers();
-    this.loadUsers();
-    this.loadCurrentUser();
+    try {
+      this.initializeDefaultUsers();
+      this.loadUsers();
+      this.loadCurrentUser();
+    } catch (error) {
+      console.error('Error initializing AuthService:', error);
+    }
   }
 
   public static getInstance(): AuthService {
@@ -158,35 +162,6 @@ class AuthService {
     }
   }
 
-  public async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
-    if (!this.currentUser) {
-      return { success: false, error: 'No hay usuario autenticado' };
-    }
-
-    if (this.currentUser.password !== currentPassword) {
-      return { success: false, error: 'La contraseña actual es incorrecta' };
-    }
-
-    if (newPassword.length < 4) {
-      return { success: false, error: 'La nueva contraseña debe tener al menos 4 caracteres' };
-    }
-
-    try {
-      this.currentUser.password = newPassword;
-      const userIndex = this.users.findIndex(u => u.id === this.currentUser!.id);
-      if (userIndex !== -1) {
-        this.users[userIndex].password = newPassword;
-      }
-      
-      this.saveUsers();
-      this.saveCurrentUser();
-
-      return { success: true };
-    } catch (error) {
-      console.error('Error changing password:', error);
-      return { success: false, error: 'Error interno del sistema' };
-    }
-  }
 
   public async deleteUser(userId: string): Promise<{ success: boolean; error?: string }> {
     if (!this.isRoot()) {
@@ -223,6 +198,58 @@ class AuthService {
       currentUser: this.currentUser,
       isLoading: false
     };
+  }
+
+  // Update user profile (name and image)
+  public async updateUserProfile(userId: string, profileData: { profileName?: string; profileImage?: string }): Promise<User> {
+    const userIndex = this.users.findIndex(u => u.id === userId);
+    if (userIndex === -1) {
+      throw new Error('Usuario no encontrado');
+    }
+
+    // Update user data
+    this.users[userIndex] = {
+      ...this.users[userIndex],
+      ...profileData
+    };
+
+    // Update current user if it's the same user
+    if (this.currentUser && this.currentUser.id === userId) {
+      this.currentUser = this.users[userIndex];
+      this.saveCurrentUser();
+    }
+
+    this.saveUsers();
+    return this.users[userIndex];
+  }
+
+  // Change user password
+  public async changePassword(username: string, currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const user = this.users.find(u => u.username === username);
+      if (!user) {
+        return { success: false, error: 'Usuario no encontrado' };
+      }
+
+      // Verify current password
+      if (user.password !== currentPassword) {
+        return { success: false, error: 'Contraseña actual incorrecta' };
+      }
+
+      // Validate new password
+      if (newPassword.length < 6) {
+        return { success: false, error: 'La nueva contraseña debe tener al menos 6 caracteres' };
+      }
+
+      // Update password
+      user.password = newPassword;
+      this.saveUsers();
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error changing password:', error);
+      return { success: false, error: 'Error interno del sistema' };
+    }
   }
 }
 

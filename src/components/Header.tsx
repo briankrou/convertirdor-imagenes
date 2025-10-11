@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, Settings, Brain, FileText, Trash2, BarChart3, Users, LogOut } from 'lucide-react';
+import { Image, Settings, Brain, FileText, Trash2, BarChart3, Users, LogOut, User } from 'lucide-react';
 
 interface HeaderProps {
   onChatGPTConfig?: () => void;
@@ -7,8 +7,9 @@ interface HeaderProps {
   onClearConfig?: () => void;
   onUsageHistory?: () => void;
   onUserManagement?: () => void;
+  onProfileConfig?: () => void;
   onLogout?: () => void;
-  currentUser?: { username: string; isRoot: boolean } | null;
+  currentUser?: { username: string; isRoot: boolean; profileName?: string; profileImage?: string } | null;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -17,18 +18,30 @@ export const Header: React.FC<HeaderProps> = ({
   onClearConfig, 
   onUsageHistory, 
   onUserManagement, 
+  onProfileConfig,
   onLogout, 
   currentUser 
 }) => {
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-0 flex items-center justify-between shadow-sm">
       <div className="flex items-center space-x-3">
-        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-          <Image className="w-5 h-5 text-white" />
+        {/* Profile Image in Blue Box */}
+        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center overflow-hidden">
+          {currentUser?.profileImage ? (
+            <img
+              src={currentUser.profileImage}
+              alt="Foto de perfil"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <User className="w-5 h-5 text-white" />
+          )}
         </div>
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Convertidor de Imágenes</h1>
-          <p className="text-sm text-gray-500">Convierte imágenes a múltiples formatos</p>
+          <p className="text-sm text-gray-500">
+            {currentUser ? (currentUser.profileName || currentUser.username) : 'Convierte imágenes a múltiples formatos'}
+          </p>
         </div>
       </div>
       
@@ -63,6 +76,13 @@ export const Header: React.FC<HeaderProps> = ({
             <Users className="w-5 h-5" />
           </button>
         )}
+        <button 
+          onClick={onProfileConfig}
+          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+          title="Configurar Perfil"
+        >
+          <User className="w-5 h-5" />
+        </button>
         <button 
           onClick={onClearConfig}
           className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"

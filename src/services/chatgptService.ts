@@ -1,11 +1,14 @@
-import { ChatGPTSettings, ImageData, PromptSettings, UsageRecord, UserChatGPTSettings, UserPromptSettings } from '../types';
+import { ImageData, UsageRecord, UserChatGPTSettings, UserPromptSettings } from '../types';
 import { authService } from './authService';
 
 export interface ChatGPTResponse {
+  file: string;
+  newFileName: string;
   title: string;
   description: string;
   caption: string;
   altText: string;
+  fullResponse?: string; // Respuesta completa de ChatGPT
 }
 
 export class ChatGPTService {
@@ -54,7 +57,7 @@ export class ChatGPTService {
     }
   }
 
-  async generateImageDescription(imageData: ImageData, productDescription?: string, namePrefix?: string, promptSettings?: UserPromptSettings): Promise<ChatGPTResponse> {
+  async generateImageDescription(imageData: ImageData, productDescription?: string, namePrefix?: string, promptSettings?: UserPromptSettings, newFileName?: string): Promise<ChatGPTResponse> {
     console.log('🔍 Iniciando generación de descripción para:', imageData.name);
     console.log('🔧 Configuración ChatGPT:', {
       enabled: this.settings.enabled,
@@ -97,13 +100,20 @@ export class ChatGPTService {
       let prompt = `Analiza esta imagen específica y proporciona la descripción en el siguiente formato exacto:
 
 ================================================================================
-*Texto alternativo*: [${prompts.altTextPrompt}]
-*Título*: [${prompts.titlePrompt}]
-*Leyenda*: [${prompts.captionPrompt}]
-*Descripción*: [${prompts.descriptionPrompt}]
+
+Archivo: ${imageData.name}
+Texto alternativo: [${prompts.altTextPrompt}]
+Título: [${prompts.titlePrompt}]
+Leyenda: [${prompts.captionPrompt}]
+Descripción: [${prompts.descriptionPrompt}]
 ================================================================================
 
-IMPORTANTE: Responde ÚNICAMENTE con el formato mostrado arriba, reemplazando los corchetes con el contenido generado. NO uses formato JSON, NO agregues texto adicional, NO uses comillas.`;
+IMPORTANTE: 
+- Responde ÚNICAMENTE con el formato mostrado arriba, reemplazando los corchetes con el contenido generado
+- NO uses formato JSON, NO agregues texto adicional, NO uses comillas
+- Incluye la línea "Archivo:" seguida del nombre del archivo
+- NO uses asteriscos (*) en los campos, solo los nombres de los campos seguidos de dos puntos
+- Usa "Archivo:" (con A mayúscula) seguido del nombre del archivo`;
 
       // Agregar contexto del producto como información adicional (no como parte del prompt)
       if (productDescription && productDescription.trim()) {
@@ -233,15 +243,18 @@ IMPORTANTE: Responde ÚNICAMENTE con el formato mostrado arriba, reemplazando lo
               const parsedResponse = JSON.parse(content);
               console.log('✅ Parseado como JSON exitosamente:', parsedResponse);
               return {
+                file: parsedResponse.file || imageData.name,
+                newFileName: newFileName || imageData.name,
                 title: parsedResponse.title || 'Título no disponible',
                 description: parsedResponse.description || 'Descripción no disponible',
                 caption: parsedResponse.caption || 'Leyenda no disponible',
-                altText: parsedResponse.altText || 'Texto alternativo no disponible'
+                altText: parsedResponse.altText || 'Texto alternativo no disponible',
+                fullResponse: content // Guardar la respuesta completa
               };
             } catch (parseError) {
               console.log('⚠️ No es JSON válido, parseando como texto...');
               // Si no es JSON válido, extraer información del texto
-              const result = this.parseTextResponse(content);
+              const result = this.parseTextResponse(content, imageData.name, newFileName);
               console.log('✅ Parseado como texto:', result);
               return result;
             }
@@ -358,33 +371,39 @@ IMPORTANTE: Responde ÚNICAMENTE con el formato mostrado arriba, reemplazando lo
     });
   }
 
-  private parseTextResponse(text: string): ChatGPTResponse {
+  private parseTextResponse(text: string, imageName?: string, newFileName?: string): ChatGPTResponse {
     // Extraer información del texto con el nuevo formato
     const lines = text.split('\n').filter(line => line.trim());
     
+    let file = imageName || 'Archivo no disponible';
     let title = 'Título no disponible';
     let description = 'Descripción no disponible';
     let caption = 'Leyenda no disponible';
     let altText = 'Texto alternativo no disponible';
     
-    // Buscar cada campo por su patrón
+    // Buscar cada campo por su patrón (sin asteriscos)
     for (const line of lines) {
-      if (line.includes('*Texto alternativo*:')) {
-        altText = line.replace('*Texto alternativo*:', '').trim();
-      } else if (line.includes('*Título*:')) {
-        title = line.replace('*Título*:', '').trim();
-      } else if (line.includes('*Leyenda*:')) {
-        caption = line.replace('*Leyenda*:', '').trim();
-      } else if (line.includes('*Descripción*:')) {
-        description = line.replace('*Descripción*:', '').trim();
+      if (line.includes('Archivo:')) {
+        file = line.replace('Archivo:', '').trim();
+      } else if (line.includes('Texto alternativo:')) {
+        altText = line.replace('Texto alternativo:', '').trim();
+      } else if (line.includes('Título:')) {
+        title = line.replace('Título:', '').trim();
+      } else if (line.includes('Leyenda:')) {
+        caption = line.replace('Leyenda:', '').trim();
+      } else if (line.includes('Descripción:')) {
+        description = line.replace('Descripción:', '').trim();
       }
     }
     
     return {
+      file,
+      newFileName: newFileName || imageName || 'Archivo no disponible',
       title,
       description,
       caption,
-      altText
+      altText,
+      fullResponse: text // Guardar la respuesta completa
     };
   }
 

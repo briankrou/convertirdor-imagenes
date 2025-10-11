@@ -32,10 +32,14 @@ export interface PromptSettings {
 export interface ImageDescription {
   id: number;
   imageName: string;
+  originalFilename: string;
+  file: string;
+  newFileName: string;
   title: string;
   description: string;
   caption: string;
   altText: string;
+  fullResponse?: string; // Respuesta completa de ChatGPT
 }
 
 export interface UsageRecord {
@@ -75,6 +79,8 @@ export interface User {
   isRoot: boolean;
   createdAt: string;
   lastLogin?: string;
+  profileName?: string;
+  profileImage?: string;
 }
 
 export interface AuthState {
@@ -111,3 +117,8 @@ export interface UserSettings {
   promptSettings: UserPromptSettings;
   conversionSettings: UserConversionSettings;
 }
+
+// Alias para compatibilidad con el código existente
+export type ConversionSettings = UserConversionSettings;
+export type ChatGPTSettings = UserChatGPTSettings;
+export type PromptSettings = UserPromptSettings;

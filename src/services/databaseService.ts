@@ -19,7 +19,12 @@ class DatabaseService {
       this.isInitialized = true;
     } catch (error) {
       console.error('Error initializing database:', error);
-      throw error;
+      // En caso de error, crear estructura por defecto
+      this.data = {
+        userSettings: {},
+        lastUpdated: new Date().toISOString()
+      };
+      this.isInitialized = true;
     }
   }
 
@@ -40,7 +45,7 @@ class DatabaseService {
         userSettings: {},
         lastUpdated: new Date().toISOString()
       };
-      await this.saveData();
+      // No intentar guardar si hay problemas
     }
   }
 

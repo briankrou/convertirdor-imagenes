@@ -39,31 +39,42 @@ export class DatabaseSync {
 
   // Sincronizar datos (priorizar archivo JSON si existe)
   static async syncData(): Promise<any> {
-    const fileData = await this.loadFromFile();
-    const localData = this.loadFromLocalStorage();
+    try {
+      const fileData = await this.loadFromFile();
+      const localData = this.loadFromLocalStorage();
 
-    if (fileData && localData) {
-      // Comparar timestamps para determinar cuál es más reciente
-      const fileTime = new Date(fileData.lastUpdated).getTime();
-      const localTime = new Date(localData.lastUpdated).getTime();
-      
-      if (fileTime > localTime) {
-        // El archivo es más reciente, actualizar localStorage
+      if (fileData && localData) {
+        // Comparar timestamps para determinar cuál es más reciente
+        const fileTime = new Date(fileData.lastUpdated).getTime();
+        const localTime = new Date(localData.lastUpdated).getTime();
+        
+        if (fileTime > localTime) {
+          // El archivo es más reciente, actualizar localStorage
+          this.saveToLocalStorage(fileData);
+          return fileData;
+        } else {
+          // localStorage es más reciente, mantenerlo
+          return localData;
+        }
+      } else if (fileData) {
+        // Solo existe el archivo, sincronizar con localStorage
         this.saveToLocalStorage(fileData);
         return fileData;
-      } else {
-        // localStorage es más reciente, mantenerlo
+      } else if (localData) {
+        // Solo existe localStorage, mantenerlo
         return localData;
+      } else {
+        // No existe ninguno, crear estructura por defecto
+        const defaultData = {
+          userSettings: {},
+          lastUpdated: new Date().toISOString()
+        };
+        this.saveToLocalStorage(defaultData);
+        return defaultData;
       }
-    } else if (fileData) {
-      // Solo existe el archivo, sincronizar con localStorage
-      this.saveToLocalStorage(fileData);
-      return fileData;
-    } else if (localData) {
-      // Solo existe localStorage, mantenerlo
-      return localData;
-    } else {
-      // No existe ninguno, crear estructura por defecto
+    } catch (error) {
+      console.error('Error in syncData:', error);
+      // En caso de error, crear estructura por defecto
       const defaultData = {
         userSettings: {},
         lastUpdated: new Date().toISOString()

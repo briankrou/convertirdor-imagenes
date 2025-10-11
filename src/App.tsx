@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Header } from './components/Headre';
+import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { ImageGrid } from './components/ImageGrid';
 import { DropZone } from './components/DropZone';
@@ -9,8 +9,9 @@ import { PromptConfig } from './components/PromptConfig';
 import { UsageHistory } from './components/UsageHistory';
 import { Login } from './components/Login';
 import { UserManagement } from './components/UserManagement';
-import { ImageData, ConversionSettings, ChatGPTSettings, PromptSettings, ImageDescription, Notification, AuthState, UserConversionSettings, UserChatGPTSettings, UserPromptSettings } from './types';
-import { convertImages } from './utils/imageConverter';
+import { ProfileConfig } from './components/ProfileConfig';
+import { ImageData, ImageDescription, Notification, AuthState, UserConversionSettings, UserChatGPTSettings, UserPromptSettings } from './types';
+// import { convertImages } from './utils/imageConverter'; // No se está usando
 import { ChatGPTService } from './services/chatgptService';
 import { databaseService } from './services/databaseService';
 import { authService } from './services/authService';
@@ -40,7 +41,7 @@ function App() {
   const [convertedImages, setConvertedImages] = useState<{ blob: Blob; filename: string }[]>([]);
   const [isConverting, setIsConverting] = useState(false);
   const [isGeneratingDescriptions, setIsGeneratingDescriptions] = useState(false);
-  const [currentPage, setCurrentPage] = useState<'main' | 'chatgpt-config' | 'prompt-config' | 'usage-history' | 'user-management'>('main');
+  const [currentPage, setCurrentPage] = useState<'main' | 'chatgpt-config' | 'prompt-config' | 'usage-history' | 'user-management' | 'profile-config'>('main');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [authState, setAuthState] = useState<AuthState>({
@@ -94,18 +95,27 @@ function App() {
   useEffect(() => {
     const initializeApp = async () => {
       try {
+        console.log('🚀 Inicializando aplicación...');
         setIsLoading(true);
+        
+        console.log('📊 Inicializando base de datos...');
         await databaseService.initialize();
+        console.log('✅ Base de datos inicializada');
         
         // Verificar autenticación
+        console.log('🔐 Verificando autenticación...');
         const auth = authService.getAuthState();
+        console.log('🔐 Estado de autenticación:', auth);
         setAuthState(auth);
         
         if (auth.isAuthenticated && auth.currentUser) {
+          console.log('👤 Usuario autenticado, cargando configuración...');
           await loadConfiguration();
         }
+        
+        console.log('✅ Aplicación inicializada correctamente');
       } catch (error) {
-        console.error('Error initializing app:', error);
+        console.error('❌ Error initializing app:', error);
       } finally {
         setIsLoading(false);
       }
@@ -206,7 +216,7 @@ function App() {
   }, [authState.currentUser]);
 
   const addNotification = useCallback((notification: Omit<Notification, 'id'>) => {
-    const id = Date.now().toString();
+    const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     setNotifications(prev => [...prev, { ...notification, id }]);
     
     if (notification.type !== 'error') {
@@ -324,6 +334,14 @@ function App() {
       message: 'Has cerrado sesión correctamente. Las imágenes han sido eliminadas.'
     });
   }, [addNotification]);
+
+  // Función para manejar actualización del perfil
+  const handleProfileUpdated = useCallback((updatedUser: User) => {
+    setAuthState(prev => ({
+      ...prev,
+      currentUser: updatedUser
+    }));
+  }, []);
 
   // Función para limpiar toda la configuración
   const handleClearConfig = useCallback(async () => {
@@ -453,16 +471,21 @@ function App() {
               image, 
               settings.productDescription, 
               settings.imageNamePrefix,
-              promptSettings
+              promptSettings,
+              filename
             );
             
             newDescriptions.push({
               id: image.id,
               imageName: image.name,
+              originalFilename: image.name,
+              file: response.file,
+              newFileName: response.newFileName,
               title: response.title,
               description: response.description,
               caption: response.caption,
-              altText: response.altText
+              altText: response.altText,
+              fullResponse: response.fullResponse
             });
             
             addNotification({
@@ -610,20 +633,28 @@ function App() {
       for (let i = 0; i < images.length; i++) {
         const image = images[i];
         try {
+          // Generar nombre de archivo para la descripción
+          const filename = generateFileName(image.name, settings, i + 1);
+          
           const response = await chatGPTService.generateImageDescription(
             image, 
             settings.productDescription, 
             settings.imageNamePrefix,
-            promptSettings
+            promptSettings,
+            filename
           );
           
           newDescriptions.push({
             id: image.id,
             imageName: image.name,
+            originalFilename: image.name,
+            file: response.file,
+            newFileName: response.newFileName,
             title: response.title,
             description: response.description,
             caption: response.caption,
-            altText: response.altText
+            altText: response.altText,
+            fullResponse: response.fullResponse
           });
 
           addNotification({
@@ -682,7 +713,8 @@ function App() {
 
       imageDescriptions.forEach((desc, index) => {
         content += `${'='.repeat(80)}\n`;
-        content += `\n`;
+        content += `Archivo: ${desc.file || desc.originalFilename}\n`;
+        content += `Nuevo nombre: ${desc.newFileName}\n`;
         content += `Texto alternativo: ${desc.altText}\n`;
         content += `Título: ${desc.title}\n`;
         content += `Leyenda: ${desc.caption}\n`;
@@ -766,14 +798,23 @@ function App() {
     let content = '';
 
     descriptions.forEach((desc, index) => {
-      content += `${'='.repeat(80)}\n`;
-      content += `\n`;
-      content += `Texto alternativo: ${desc.altText}\n`;
-      content += `Título: ${desc.title}\n`;
-      content += `Leyenda: ${desc.caption}\n`;
-      content += `Descripción: ${desc.description}\n`;
-      content += `${'='.repeat(80)}\n`;
-      content += `\n`;
+      // Si hay respuesta completa de ChatGPT, usarla directamente
+      if (desc.fullResponse) {
+        content += desc.fullResponse + '\n\n';
+      } else {
+        // Fallback al formato anterior si no hay respuesta completa
+        const originalFilename = desc.file || desc.originalFilename || `imagen_${index + 1}`;
+        
+        content += `${'='.repeat(80)}\n`;
+        content += `Archivo: ${originalFilename}\n`;
+        content += `Nuevo nombre: ${desc.newFileName}\n`;
+        content += `Texto alternativo: ${desc.altText}\n`;
+        content += `Título: ${desc.title}\n`;
+        content += `Leyenda: ${desc.caption}\n`;
+        content += `Descripción: ${desc.description}\n`;
+        content += `${'='.repeat(80)}\n`;
+        content += `\n`;
+      }
     });
 
     return content;
@@ -863,6 +904,16 @@ function App() {
     );
   }
 
+  if (currentPage === 'profile-config') {
+    return (
+      <ProfileConfig
+        currentUser={authState.currentUser!}
+        onBack={() => setCurrentPage('main')}
+        onProfileUpdated={handleProfileUpdated}
+      />
+    );
+  }
+
   // Mostrar pantalla de carga mientras se inicializa
   if (isLoading || authState.isLoading) {
     return (
@@ -888,6 +939,7 @@ function App() {
         onClearConfig={handleClearConfig}
         onUsageHistory={() => setCurrentPage('usage-history')}
         onUserManagement={() => setCurrentPage('user-management')}
+        onProfileConfig={() => setCurrentPage('profile-config')}
         onLogout={handleLogout}
         currentUser={authState.currentUser}
       />
