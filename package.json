@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "start": "vite preview --host 0.0.0.0 --port 3000",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
