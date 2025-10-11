@@ -16,6 +16,7 @@ export default defineConfig({
       '0.0.0.0',
       // Hosts de EasyPanel
       'dbkoko-convertidor-imagenes.mvitku.easypanel.host',
+      'dbkoko-converter-img.mvitku.easypanel.host',
       '*.easypanel.host',
       '*.mvitku.easypanel.host',
       // Hosts genéricos para desarrollo
@@ -32,6 +33,7 @@ export default defineConfig({
       '0.0.0.0',
       // Hosts de EasyPanel
       'dbkoko-convertidor-imagenes.mvitku.easypanel.host',
+      'dbkoko-converter-img.mvitku.easypanel.host',
       '*.easypanel.host',
       '*.mvitku.easypanel.host',
       // Hosts genéricos para desarrollo
