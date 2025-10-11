@@ -36,7 +36,31 @@ class GmailApiService {
    */
   setGmailConfig(config: GmailApiConfig): void {
     this.config = config;
+    
+    // Cargar tokens desde localStorage si no están en la configuración
+    if (!this.config.accessToken || !this.config.refreshToken) {
+      this.loadTokensFromStorage();
+    }
+    
     this.initializeConfig();
+  }
+
+  /**
+   * Carga tokens desde localStorage
+   */
+  private loadTokensFromStorage(): void {
+    try {
+      const userSettings = JSON.parse(localStorage.getItem('userSettings') || '{}');
+      const gmailSettings = userSettings.gmailApiSettings || {};
+      
+      if (gmailSettings.accessToken && gmailSettings.refreshToken) {
+        this.config!.accessToken = gmailSettings.accessToken;
+        this.config!.refreshToken = gmailSettings.refreshToken;
+        console.log('🔄 [Gmail API] Tokens cargados desde localStorage');
+      }
+    } catch (error) {
+      console.error('❌ [Gmail API] Error al cargar tokens desde localStorage:', error);
+    }
   }
 
   /**
@@ -63,14 +87,33 @@ class GmailApiService {
    * Verifica si el servicio está configurado
    */
   isConfigured(): boolean {
-    return !!(
-      this.config &&
+    if (!this.config) return false;
+    
+    // Verificar configuración básica
+    const hasBasicConfig = !!(
       this.config.enabled &&
       this.config.clientId &&
       this.config.clientSecret &&
       this.config.fromEmail &&
       this.config.fromName
     );
+    
+    if (!hasBasicConfig) return false;
+    
+    // Verificar tokens (en configuración o localStorage)
+    const hasTokens = !!(
+      this.config.accessToken && this.config.refreshToken
+    );
+    
+    if (!hasTokens) {
+      // Intentar cargar desde localStorage
+      this.loadTokensFromStorage();
+      return !!(
+        this.config.accessToken && this.config.refreshToken
+      );
+    }
+    
+    return true;
   }
 
   /**

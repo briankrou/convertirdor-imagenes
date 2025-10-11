@@ -118,6 +118,20 @@
           const data = await response.json();
           console.log('✅ [CALLBACK HTML] Tokens obtenidos exitosamente');
           
+          // Guardar tokens en localStorage
+          try {
+            const userSettings = JSON.parse(localStorage.getItem('userSettings') || '{}');
+            if (!userSettings.gmailApiSettings) {
+              userSettings.gmailApiSettings = {};
+            }
+            userSettings.gmailApiSettings.accessToken = data.access_token;
+            userSettings.gmailApiSettings.refreshToken = data.refresh_token;
+            localStorage.setItem('userSettings', JSON.stringify(userSettings));
+            console.log('💾 [CALLBACK HTML] Tokens guardados en localStorage');
+          } catch (error) {
+            console.error('❌ [CALLBACK HTML] Error al guardar tokens:', error);
+          }
+          
           // Enviar mensaje a la ventana padre
           if (window.opener && !window.opener.closed) {
             console.log('📤 [CALLBACK HTML] Enviando mensaje a ventana padre...');

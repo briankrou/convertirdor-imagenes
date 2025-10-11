@@ -146,11 +146,28 @@ export const GmailApiConfig: React.FC<GmailApiConfigProps> = ({
           console.log('✅ Autorización exitosa recibida');
           const { accessToken, refreshToken } = event.data;
           
-          onSettingsChange({
+          // Actualizar configuración
+          const updatedSettings = {
             ...settings,
             accessToken,
             refreshToken
-          });
+          };
+          
+          onSettingsChange(updatedSettings);
+          
+          // Guardar en localStorage como respaldo
+          try {
+            const userSettings = JSON.parse(localStorage.getItem('userSettings') || '{}');
+            if (!userSettings.gmailApiSettings) {
+              userSettings.gmailApiSettings = {};
+            }
+            userSettings.gmailApiSettings.accessToken = accessToken;
+            userSettings.gmailApiSettings.refreshToken = refreshToken;
+            localStorage.setItem('userSettings', JSON.stringify(userSettings));
+            console.log('💾 Tokens guardados en localStorage desde ventana principal');
+          } catch (error) {
+            console.error('❌ Error al guardar tokens en localStorage:', error);
+          }
           
           if (authWindow && !authWindow.closed) {
             authWindow.close();
