@@ -695,6 +695,30 @@ function App() {
     }
   }, [images, chatGPTSettings, addNotification]);
 
+  // Función auxiliar para agregar el nuevo nombre a la respuesta completa
+  const addNewFileNameToResponse = (fullResponse: string, newFileName: string): string => {
+    const lines = fullResponse.split('\n');
+    let modifiedResponse = '';
+    let foundFileLine = false;
+    
+    for (const line of lines) {
+      modifiedResponse += line + '\n';
+      
+      // Si encontramos la línea "Archivo:", agregar "Nuevo nombre:" en la siguiente línea
+      if (line.includes('Archivo:') && !foundFileLine) {
+        modifiedResponse += `Nuevo nombre: ${newFileName}\n`;
+        foundFileLine = true;
+      }
+    }
+    
+    // Si no se encontró la línea "Archivo:", agregar el nuevo nombre al principio
+    if (!foundFileLine) {
+      modifiedResponse = `Nuevo nombre: ${newFileName}\n` + modifiedResponse;
+    }
+    
+    return modifiedResponse;
+  };
+
   const handleExportDescriptions = useCallback(() => {
     if (imageDescriptions.length === 0) {
       addNotification({
@@ -712,15 +736,21 @@ function App() {
       let content = '';
 
       imageDescriptions.forEach((desc, index) => {
-        content += `${'='.repeat(80)}\n`;
-        content += `Archivo: ${desc.file || desc.originalFilename}\n`;
-        content += `Nuevo nombre: ${desc.newFileName}\n`;
-        content += `Texto alternativo: ${desc.altText}\n`;
-        content += `Título: ${desc.title}\n`;
-        content += `Leyenda: ${desc.caption}\n`;
-        content += `Descripción: ${desc.description}\n`;
-        content += `${'='.repeat(80)}\n`;
-        content += `\n`;
+        // Si hay respuesta completa de ChatGPT, modificarla para incluir el nuevo nombre
+        if (desc.fullResponse) {
+          content += addNewFileNameToResponse(desc.fullResponse, desc.newFileName) + '\n';
+        } else {
+          // Fallback al formato anterior si no hay respuesta completa
+          content += `${'='.repeat(80)}\n`;
+          content += `Archivo: ${desc.file || desc.originalFilename}\n`;
+          content += `Nuevo nombre: ${desc.newFileName}\n`;
+          content += `Texto alternativo: ${desc.altText}\n`;
+          content += `Título: ${desc.title}\n`;
+          content += `Leyenda: ${desc.caption}\n`;
+          content += `Descripción: ${desc.description}\n`;
+          content += `${'='.repeat(80)}\n`;
+          content += `\n`;
+        }
       });
 
       const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
@@ -798,9 +828,9 @@ function App() {
     let content = '';
 
     descriptions.forEach((desc, index) => {
-      // Si hay respuesta completa de ChatGPT, usarla directamente
+      // Si hay respuesta completa de ChatGPT, modificarla para incluir el nuevo nombre
       if (desc.fullResponse) {
-        content += desc.fullResponse + '\n\n';
+        content += addNewFileNameToResponse(desc.fullResponse, desc.newFileName) + '\n';
       } else {
         // Fallback al formato anterior si no hay respuesta completa
         const originalFilename = desc.file || desc.originalFilename || `imagen_${index + 1}`;
