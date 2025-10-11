@@ -129,8 +129,8 @@ class GmailApiService {
       'https://www.googleapis.com/auth/gmail.compose'
     ];
 
-    // Usar la URL del callback HTML estático
-    const redirectUri = this.config.redirectUri || `${window.location.origin}/auth/callback.html`;
+    // Usar la URL del callback (sin .html para compatibilidad)
+    const redirectUri = this.config.redirectUri || `${window.location.origin}/auth/callback`;
 
     const params = new URLSearchParams({
       client_id: this.config.clientId,
