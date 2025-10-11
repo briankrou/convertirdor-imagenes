@@ -180,10 +180,20 @@ export const GmailApiConfig: React.FC<GmailApiConfigProps> = ({
       
       window.addEventListener('message', messageListener);
       
+      // Verificar si la ventana se cerró manualmente
+      const checkClosed = setInterval(() => {
+        if (authWindow?.closed) {
+          clearInterval(checkClosed);
+          window.removeEventListener('message', messageListener);
+          setIsAuthorizing(false);
+        }
+      }, 1000);
+      
       // Timeout para cerrar la ventana si no hay respuesta
       setTimeout(() => {
         if (authWindow && !authWindow.closed) {
           authWindow.close();
+          clearInterval(checkClosed);
           window.removeEventListener('message', messageListener);
           setIsAuthorizing(false);
         }
