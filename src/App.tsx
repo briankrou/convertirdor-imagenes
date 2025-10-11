@@ -271,13 +271,34 @@ function App() {
   }, []);
 
   const handleClearAll = useCallback(() => {
-    images.forEach(image => URL.revokeObjectURL(image.url));
-    setImages([]);
-    addNotification({
-      type: 'info',
-      title: 'Imágenes eliminadas',
-      message: 'Todas las imágenes han sido eliminadas'
-    });
+    if (window.confirm('¿Estás seguro de que quieres eliminar todas las imágenes, descripciones y resetear los campos de configuración?')) {
+      // Limpiar todas las imágenes y liberar memoria
+      images.forEach(image => URL.revokeObjectURL(image.url));
+      
+      // Resetear estados relacionados con imágenes
+      setImages([]);
+      setImageDescriptions([]);
+      setConvertedImages([]);
+      setIsConverting(false);
+      setIsGeneratingDescriptions(false);
+      
+      // Resetear configuración de conversión a valores predeterminados
+      const defaultConversionSettings: ConversionSettings = {
+        format: 'png',
+        quality: 90,
+        imageNamePrefix: 'imagen',
+        sdkSuffix: 'A5455',
+        productDescription: ''
+      };
+      
+      setSettings(defaultConversionSettings);
+      
+      addNotification({
+        type: 'info',
+        title: 'Contenido y configuración limpiados',
+        message: 'Se eliminaron todas las imágenes, descripciones y se reseteó la configuración de conversión'
+      });
+    }
   }, [images, addNotification]);
 
   // Función para manejar cambios en configuración de conversión
@@ -345,11 +366,22 @@ function App() {
 
   // Función para limpiar toda la configuración
   const handleClearConfig = useCallback(async () => {
-    if (window.confirm('¿Estás seguro de que quieres limpiar toda la configuración? Esta acción no se puede deshacer.')) {
+    if (window.confirm('¿Estás seguro de que quieres limpiar toda la configuración? Esta acción no se puede deshacer y eliminará:\n\n• Todas las imágenes cargadas\n• Todas las descripciones generadas\n• Toda la configuración de conversión\n• Toda la configuración de ChatGPT\n• Toda la configuración de prompts')) {
       try {
+        // Limpiar datos de la base de datos
         await databaseService.clearAllData();
         
-        // Resetear a valores predeterminados
+        // Limpiar todas las imágenes y liberar memoria
+        images.forEach(image => URL.revokeObjectURL(image.url));
+        
+        // Resetear todos los estados a valores predeterminados
+        setImages([]);
+        setImageDescriptions([]);
+        setConvertedImages([]);
+        setIsConverting(false);
+        setIsGeneratingDescriptions(false);
+        
+        // Resetear configuración de conversión
         const defaultConversionSettings: ConversionSettings = {
           format: 'png',
           quality: 90,
@@ -358,12 +390,14 @@ function App() {
           productDescription: ''
         };
         
+        // Resetear configuración de ChatGPT
         const defaultChatGPTSettings: ChatGPTSettings = {
           apiKey: '',
           model: 'gpt-4o',
           enabled: false
         };
         
+        // Resetear configuración de prompts
         const defaultPromptSettings: PromptSettings = {
           titlePrompt: "Genera un título atractivo y descriptivo para esta imagen (máximo 60 caracteres). El título debe ser claro, conciso y que capture la esencia del producto mostrado.",
           descriptionPrompt: "Describe detalladamente lo que ves en esta imagen. Incluye características visuales, colores, materiales, estilo y cualquier detalle relevante del producto (2-3 oraciones).",
@@ -378,8 +412,8 @@ function App() {
         
         addNotification({
           type: 'success',
-          title: 'Configuración limpiada',
-          message: 'Se restauró la configuración predeterminada'
+          title: 'Aplicación limpiada completamente',
+          message: 'Se eliminaron todas las imágenes, descripciones y se restauró la configuración predeterminada'
         });
       } catch (error) {
         console.error('Error clearing configuration:', error);
@@ -390,7 +424,7 @@ function App() {
         });
       }
     }
-  }, [addNotification]);
+  }, [addNotification, images]);
 
   // Función para solo convertir imágenes (sin generar descripciones)
   const handleConvertOnly = useCallback(async () => {
