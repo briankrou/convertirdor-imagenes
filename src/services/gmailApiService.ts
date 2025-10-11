@@ -118,12 +118,15 @@ class GmailApiService {
 
   /**
    * Genera la URL de autorización OAuth2
+   * Basado en la documentación oficial de Google OAuth 2.0
+   * https://developers.google.com/identity/protocols/oauth2?hl=es-419
    */
   getAuthUrl(): string {
     if (!this.config) {
       throw new Error('Configuración Gmail API no inicializada');
     }
 
+    // Scopes específicos para Gmail API según documentación oficial
     const scopes = [
       'https://www.googleapis.com/auth/gmail.send',
       'https://www.googleapis.com/auth/gmail.compose'
@@ -132,28 +135,35 @@ class GmailApiService {
     // Usar la URL del callback (sin .html para compatibilidad)
     const redirectUri = this.config.redirectUri || `${window.location.origin}/auth/callback`;
 
+    // Parámetros según documentación oficial de Google OAuth 2.0
     const params = new URLSearchParams({
       client_id: this.config.clientId,
       redirect_uri: redirectUri,
       response_type: 'code',
       scope: scopes.join(' '),
-      access_type: 'offline',
-      prompt: 'consent'
+      access_type: 'offline', // Permite obtener refresh token
+      prompt: 'consent', // Fuerza pantalla de consentimiento
+      include_granted_scopes: 'true' // Incluye scopes previamente otorgados
     });
 
-    console.log('🔗 [Gmail API] URL de autorización generada:', `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+    console.log('🔗 [Gmail API] URL de autorización generada (OAuth 2.0 oficial):', `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
     console.log('🔗 [Gmail API] Redirect URI:', redirectUri);
+    console.log('🔗 [Gmail API] Scopes:', scopes);
 
     return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
   }
 
   /**
    * Intercambia el código de autorización por tokens
+   * Basado en la documentación oficial de Google OAuth 2.0
+   * https://developers.google.com/identity/protocols/oauth2?hl=es-419
    */
   async getTokensFromCode(code: string): Promise<{ accessToken: string; refreshToken: string }> {
     if (!this.config) {
       throw new Error('Configuración Gmail API no inicializada');
     }
+
+    console.log('🔄 [Gmail API] Intercambiando código por tokens (OAuth 2.0 oficial)...');
 
     try {
       const response = await fetch('https://oauth2.googleapis.com/token', {
@@ -172,10 +182,15 @@ class GmailApiService {
 
       if (!response.ok) {
         const error = await response.text();
+        console.error('❌ [Gmail API] Error al obtener tokens:', error);
         throw new Error(`Error al obtener tokens: ${error}`);
       }
 
       const data = await response.json();
+      console.log('✅ [Gmail API] Tokens obtenidos exitosamente (OAuth 2.0 oficial)');
+      console.log('🔑 [Gmail API] Access Token:', data.access_token ? '✅ Recibido' : '❌ No recibido');
+      console.log('🔄 [Gmail API] Refresh Token:', data.refresh_token ? '✅ Recibido' : '❌ No recibido');
+      console.log('⏰ [Gmail API] Expires In:', data.expires_in ? `${data.expires_in} segundos` : 'No especificado');
       
       return {
         accessToken: data.access_token,
