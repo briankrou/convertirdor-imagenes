@@ -57,6 +57,8 @@
       console.log('🔄 [CALLBACK HTML] Iniciando procesamiento de callback...');
       console.log('📍 [CALLBACK HTML] URL actual:', window.location.href);
       console.log('🪟 [CALLBACK HTML] Es ventana popup:', window.opener !== null);
+      console.log('🔍 [CALLBACK HTML] Pathname:', window.location.pathname);
+      console.log('🔍 [CALLBACK HTML] Search:', window.location.search);
       
       // Obtener parámetros de la URL
       const urlParams = new URLSearchParams(window.location.search);
