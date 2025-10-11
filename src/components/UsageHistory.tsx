@@ -12,11 +12,8 @@ const MODEL_PRICING = {
   'gpt-4o': { input: 0.0025, output: 0.01 },
   'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
   'gpt-4-turbo': { input: 0.01, output: 0.03 },
-  'gpt-4': { input: 0.03, output: 0.06 },
   'gpt-4.1': { input: 0.01, output: 0.03 },
-  'o3': { input: 0.05, output: 0.15 },
-  'o4-mini': { input: 0.00015, output: 0.0006 },
-  'gpt-3.5-turbo': { input: 0.0005, output: 0.0015 }
+  'o3': { input: 0.05, output: 0.15 }
 };
 
 export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
@@ -37,6 +34,7 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
   });
   const [modelFilter, setModelFilter] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [showUserSummary, setShowUserSummary] = useState(false);
 
   useEffect(() => {
     loadUsageHistory();
@@ -140,12 +138,95 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
   };
 
   const clearHistory = () => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar todo el historial de uso? Esta acción no se puede deshacer.')) {
-      localStorage.removeItem('chatgpt-usage-history');
-      setUsageRecords([]);
-      setFilteredRecords([]);
-      setStats(null);
+    if (isRoot) {
+      // Administrador puede eliminar todo el historial
+      if (window.confirm('¿Estás seguro de que quieres eliminar TODO el historial de uso de TODOS los usuarios? Esta acción no se puede deshacer.')) {
+        localStorage.removeItem('chatgpt-usage-history');
+        setUsageRecords([]);
+        setFilteredRecords([]);
+        setStats(null);
+      }
+    } else {
+      // Usuario normal solo puede eliminar su propio historial
+      if (window.confirm('¿Estás seguro de que quieres eliminar tu historial de uso personal? Esta acción no se puede deshacer.')) {
+        clearUserHistory();
+      }
     }
+  };
+
+  const clearUserHistory = () => {
+    try {
+      const stored = localStorage.getItem('chatgpt-usage-history');
+      if (stored) {
+        const allRecords: UsageRecord[] = JSON.parse(stored);
+        const currentUsername = currentUser?.username || '';
+        
+        // Filtrar para mantener solo los registros de otros usuarios
+        const filteredRecords = allRecords.filter(record => 
+          !record.imageName.includes(`${currentUsername}_`)
+        );
+        
+        // Guardar los registros filtrados
+        localStorage.setItem('chatgpt-usage-history', JSON.stringify(filteredRecords));
+        
+        // Actualizar el estado local
+        setUsageRecords([]);
+        setFilteredRecords([]);
+        setStats(null);
+      }
+    } catch (error) {
+      console.error('Error clearing user history:', error);
+    }
+  };
+
+  const deleteUserRecord = (username: string) => {
+    if (window.confirm(`¿Estás seguro de que quieres eliminar todo el historial de uso de "${username}"? Esta acción no se puede deshacer.`)) {
+      try {
+        const stored = localStorage.getItem('chatgpt-usage-history');
+        if (stored) {
+          const allRecords: UsageRecord[] = JSON.parse(stored);
+          
+          // Filtrar para mantener solo los registros de otros usuarios
+          const filteredRecords = allRecords.filter(record => 
+            !record.imageName.includes(`${username}_`)
+          );
+          
+          // Guardar los registros filtrados
+          localStorage.setItem('chatgpt-usage-history', JSON.stringify(filteredRecords));
+          
+          // Recargar el historial
+          loadUsageHistory();
+        }
+      } catch (error) {
+        console.error('Error deleting user records:', error);
+      }
+    }
+  };
+
+  const toggleUserSummary = () => {
+    setShowUserSummary(!showUserSummary);
+  };
+
+  const getUserSummary = () => {
+    const userStats: { [username: string]: { count: number; totalCost: number; lastActivity: string } } = {};
+    
+    usageRecords.forEach(record => {
+      const username = record.imageName.split('_')[0] || 'unknown';
+      if (!userStats[username]) {
+        userStats[username] = {
+          count: 0,
+          totalCost: 0,
+          lastActivity: record.timestamp
+        };
+      }
+      userStats[username].count++;
+      userStats[username].totalCost += record.cost;
+      if (new Date(record.timestamp) > new Date(userStats[username].lastActivity)) {
+        userStats[username].lastActivity = record.timestamp;
+      }
+    });
+    
+    return userStats;
   };
 
   const clearFilters = () => {
@@ -259,10 +340,21 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
                 <button
                   onClick={clearHistory}
                   className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium flex items-center space-x-2 transition-colors"
+                  title={isRoot ? 'Eliminar todo el historial del sistema' : 'Eliminar solo mi historial personal'}
                 >
                   <Trash2 className="w-4 h-4" />
-                  <span>Limpiar</span>
+                  <span>{isRoot ? 'Limpiar Todo' : 'Limpiar Mío'}</span>
                 </button>
+                {isRoot && (
+                  <button
+                    onClick={toggleUserSummary}
+                    className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium flex items-center space-x-2 transition-colors"
+                    title="Ver resumen de usuarios y sus registros"
+                  >
+                    <Users className="w-4 h-4" />
+                    <span>Resumen Usuarios</span>
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -345,6 +437,43 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
               </p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Resumen de Usuarios - Solo para administradores */}
+      {showUserSummary && isRoot && usageRecords.length > 0 && (
+        <div className="bg-white border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium text-gray-900">Resumen por Usuario</h3>
+            <button
+              onClick={() => setShowUserSummary(false)}
+              className="text-sm text-gray-500 hover:text-gray-700 flex items-center space-x-1"
+            >
+              <X className="w-4 h-4" />
+              <span>Cerrar</span>
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Object.entries(getUserSummary()).map(([username, stats]) => (
+              <div key={username} className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium text-gray-900">{username}</h4>
+                  <button
+                    onClick={() => deleteUserRecord(username)}
+                    className="text-red-600 hover:text-red-800"
+                    title={`Eliminar historial de ${username}`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="space-y-1 text-sm text-gray-600">
+                  <div>Registros: {stats.count}</div>
+                  <div>Costo total: {formatCurrency(stats.totalCost)}</div>
+                  <div>Última actividad: {new Date(stats.lastActivity).toLocaleString()}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -462,6 +591,11 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Estado
                       </th>
+                      {isRoot && (
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Acciones
+                        </th>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -516,6 +650,18 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
                               </span>
                             )}
                           </td>
+                          {isRoot && (
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <button
+                                onClick={() => deleteUserRecord(record.imageName.split('_')[0])}
+                                className="text-red-600 hover:text-red-900 flex items-center space-x-1"
+                                title={`Eliminar historial de ${record.imageName.split('_')[0]}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                <span>Eliminar</span>
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                   </tbody>

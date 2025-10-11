@@ -16,6 +16,8 @@ export const ChatGPTConfig: React.FC<ChatGPTConfigProps> = ({
   const [showApiKey, setShowApiKey] = useState(false);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [isTestingImage, setIsTestingImage] = useState(false);
+  const [imageTestResult, setImageTestResult] = useState<string>('');
 
   const modelOptions = [
     { 
@@ -37,12 +39,6 @@ export const ChatGPTConfig: React.FC<ChatGPTConfigProps> = ({
       price: 'Precio medio'
     },
     { 
-      value: 'gpt-4' as const, 
-      label: 'GPT-4 (Visión)', 
-      description: 'Modelo avanzado con capacidades de visión',
-      price: 'Más caro'
-    },
-    { 
       value: 'gpt-4.1' as const, 
       label: 'GPT-4.1', 
       description: 'Familia GPT-4.1 con versiones de visión',
@@ -53,18 +49,6 @@ export const ChatGPTConfig: React.FC<ChatGPTConfigProps> = ({
       label: 'o3', 
       description: 'Modelo de razonamiento avanzado con análisis visual profundo',
       price: 'Premium'
-    },
-    { 
-      value: 'o4-mini' as const, 
-      label: 'o4-mini', 
-      description: 'Razonamiento eficiente con capacidades visuales',
-      price: 'Económico'
-    },
-    { 
-      value: 'gpt-3.5-turbo' as const, 
-      label: 'GPT-3.5 Turbo', 
-      description: 'Modelo rápido y económico (sin visión)',
-      price: 'Más económico'
     }
   ];
 
@@ -106,6 +90,61 @@ export const ChatGPTConfig: React.FC<ChatGPTConfigProps> = ({
       setConnectionStatus('error');
     } finally {
       setIsTestingConnection(false);
+    }
+  };
+
+  const testImageAnalysis = async () => {
+    if (!settings.apiKey.trim()) {
+      setImageTestResult('❌ API key no configurada');
+      return;
+    }
+
+    setIsTestingImage(true);
+    setImageTestResult('');
+
+    try {
+      // Crear una imagen de prueba simple
+      const canvas = document.createElement('canvas');
+      canvas.width = 200;
+      canvas.height = 200;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        setImageTestResult('❌ No se pudo crear contexto de canvas');
+        return;
+      }
+
+      // Dibujar un rectángulo simple
+      ctx.fillStyle = '#4F46E5';
+      ctx.fillRect(0, 0, 200, 200);
+      ctx.fillStyle = 'white';
+      ctx.font = '20px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('Imagen de Prueba', 100, 100);
+
+      const testImageUrl = canvas.toDataURL();
+      const testImageData = {
+        id: 'test-image',
+        name: 'imagen-prueba.png',
+        url: testImageUrl,
+        file: null as any
+      };
+
+      // Importar el servicio de ChatGPT
+      const { ChatGPTService } = await import('../services/chatgptService');
+      const chatGPTService = new ChatGPTService(settings);
+      
+      const result = await chatGPTService.testImageAnalysis(testImageData);
+      
+      if (result.success) {
+        setImageTestResult(`✅ Prueba exitosa: ${result.details?.content || 'Análisis completado'}`);
+      } else {
+        setImageTestResult(`❌ Error: ${result.error}`);
+      }
+    } catch (error) {
+      setImageTestResult(`❌ Error inesperado: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    } finally {
+      setIsTestingImage(false);
     }
   };
 
@@ -230,6 +269,14 @@ export const ChatGPTConfig: React.FC<ChatGPTConfigProps> = ({
                       {isTestingConnection ? 'Probando...' : 'Probar Conexión'}
                     </button>
                     
+                    <button
+                      onClick={testImageAnalysis}
+                      disabled={!settings.apiKey.trim() || isTestingImage}
+                      className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+                    >
+                      {isTestingImage ? 'Probando Imagen...' : 'Probar Análisis de Imagen'}
+                    </button>
+                    
                     {connectionStatus !== 'idle' && (
                       <div className="flex items-center space-x-2">
                         {getConnectionStatusIcon()}
@@ -238,6 +285,12 @@ export const ChatGPTConfig: React.FC<ChatGPTConfigProps> = ({
                         }`}>
                           {getConnectionStatusText()}
                         </span>
+                      </div>
+                    )}
+                    
+                    {imageTestResult && (
+                      <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+                        <p className="text-sm text-gray-700">{imageTestResult}</p>
                       </div>
                     )}
                   </div>

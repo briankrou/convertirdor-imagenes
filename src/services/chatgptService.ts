@@ -16,11 +16,8 @@ export class ChatGPTService {
     'gpt-4o': { input: 0.0025, output: 0.01 },
     'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
     'gpt-4-turbo': { input: 0.01, output: 0.03 },
-    'gpt-4': { input: 0.03, output: 0.06 },
     'gpt-4.1': { input: 0.01, output: 0.03 },
-    'o3': { input: 0.05, output: 0.15 },
-    'o4-mini': { input: 0.00015, output: 0.0006 },
-    'gpt-3.5-turbo': { input: 0.0005, output: 0.0015 }
+    'o3': { input: 0.05, output: 0.15 }
   };
 
   constructor(settings: ChatGPTSettings) {
@@ -63,8 +60,22 @@ export class ChatGPTService {
     }
 
     try {
-      // Convertir la imagen a base64 para enviarla a la API
+      // Validar la imagen antes de procesarla
+      console.log('🔍 Validando imagen:', imageData.name);
+      const validation = await this.validateImage(imageData);
+      
+      if (!validation.isValid) {
+        throw new Error(validation.error || 'La imagen no es válida');
+      }
+      
+      console.log('✅ Imagen validada exitosamente');
       console.log('🖼️ Convirtiendo imagen a base64...');
+      console.log('📁 Datos de imagen:', {
+        name: imageData.name,
+        url: imageData.url,
+        urlLength: imageData.url.length
+      });
+      
       const base64Image = await this.convertImageToBase64(imageData.url);
       console.log('✅ Imagen convertida a base64, tamaño:', base64Image.length, 'caracteres');
       
@@ -101,42 +112,81 @@ IMPORTANTE: Responde ÚNICAMENTE con el formato mostrado arriba, reemplazando lo
       }
 
       console.log('🚀 Enviando solicitud a OpenAI API...');
+      console.log('📋 Configuración de la solicitud:', {
+        model: this.settings.model,
+        promptLength: prompt.length,
+        imageSize: base64Image.length,
+        hasApiKey: !!this.settings.apiKey
+      });
+      
+      const requestBody = {
+        model: this.settings.model,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: prompt
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:image/jpeg;base64,${base64Image}`
+                }
+              }
+            ]
+          }
+        ],
+        max_tokens: 500,
+        temperature: 0.7
+      };
+      
+      console.log('📤 Cuerpo de la solicitud:', JSON.stringify(requestBody, null, 2));
+      
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.settings.apiKey}`
         },
-        body: JSON.stringify({
-          model: this.settings.model,
-          messages: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'text',
-                  text: prompt
-                },
-                {
-                  type: 'image_url',
-                  image_url: {
-                    url: `data:image/jpeg;base64,${base64Image}`
-                  }
-                }
-              ]
-            }
-          ],
-          max_tokens: 500,
-          temperature: 0.7
-        })
+        body: JSON.stringify(requestBody)
       });
 
       console.log('📡 Respuesta recibida, status:', response.status);
       
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error('❌ Error de API:', errorData);
-        throw new Error(`Error de API: ${errorData.error?.message || 'Error desconocido'}`);
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          console.error('❌ Error parseando respuesta de error:', parseError);
+          errorData = { error: { message: `HTTP ${response.status}: ${response.statusText}` } };
+        }
+        
+        console.error('❌ Error de API:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorData: errorData
+        });
+        
+        // Proporcionar mensajes de error más específicos
+        let errorMessage = 'Error desconocido';
+        if (response.status === 401) {
+          errorMessage = 'API key inválida o expirada';
+        } else if (response.status === 429) {
+          errorMessage = 'Límite de solicitudes excedido. Intenta más tarde';
+        } else if (response.status === 400) {
+          errorMessage = errorData.error?.message || 'Solicitud inválida';
+        } else if (response.status === 413) {
+          errorMessage = 'La imagen es demasiado grande';
+        } else if (response.status === 500) {
+          errorMessage = 'Error interno del servidor de OpenAI';
+        } else {
+          errorMessage = errorData.error?.message || `Error HTTP ${response.status}`;
+        }
+        
+        throw new Error(`Error de API: ${errorMessage}`);
       }
 
       const data = await response.json();
@@ -190,7 +240,27 @@ IMPORTANTE: Responde ÚNICAMENTE con el formato mostrado arriba, reemplazando lo
             }
 
     } catch (error) {
-      console.error('Error generando descripción:', error);
+      console.error('❌ Error generando descripción:', error);
+      
+      // Determinar el tipo de error y proporcionar un mensaje más específico
+      let errorMessage = 'Error desconocido';
+      if (error instanceof Error) {
+        if (error.message.includes('Error cargando imagen')) {
+          errorMessage = `No se pudo cargar la imagen: ${imageData.name}`;
+        } else if (error.message.includes('Error convirtiendo imagen')) {
+          errorMessage = `No se pudo procesar la imagen: ${imageData.name}`;
+        } else if (error.message.includes('Timeout')) {
+          errorMessage = `Timeout procesando la imagen: ${imageData.name}`;
+        } else if (error.message.includes('Error de API')) {
+          errorMessage = `Error de ChatGPT API: ${error.message}`;
+        } else if (error.message.includes('No se recibió respuesta')) {
+          errorMessage = `ChatGPT no respondió para: ${imageData.name}`;
+        } else {
+          errorMessage = `Error analizando imagen: ${error.message}`;
+        }
+      }
+      
+      console.error('📝 Mensaje de error específico:', errorMessage);
       
       // Guardar registro de error
       const currentUser = authService.getCurrentUser();
@@ -204,39 +274,78 @@ IMPORTANTE: Responde ÚNICAMENTE con el formato mostrado arriba, reemplazando lo
         totalTokens: 0,
         cost: 0,
         success: false,
-        error: error instanceof Error ? error.message : 'Error desconocido'
+        error: errorMessage
       };
       this.saveUsageRecord(errorRecord);
       
-      throw error;
+      // Lanzar un error más descriptivo
+      throw new Error(errorMessage);
     }
   }
 
   private async convertImageToBase64(imageUrl: string): Promise<string> {
     return new Promise((resolve, reject) => {
+      console.log('🖼️ Iniciando conversión de imagen:', imageUrl);
+      
       const img = new Image();
       img.crossOrigin = 'anonymous';
       
       img.onload = () => {
+        console.log('✅ Imagen cargada exitosamente:', {
+          width: img.width,
+          height: img.height,
+          naturalWidth: img.naturalWidth,
+          naturalHeight: img.naturalHeight
+        });
+        
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
+        
+        if (!ctx) {
+          reject(new Error('No se pudo obtener el contexto del canvas'));
+          return;
+        }
         
         canvas.width = img.width;
         canvas.height = img.height;
         
-        ctx?.drawImage(img, 0, 0);
-        
         try {
-          const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+          ctx.drawImage(img, 0, 0);
+          console.log('✅ Imagen dibujada en canvas');
+          
+          // Intentar diferentes formatos y calidades
+          let base64: string;
+          try {
+            base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+            console.log('✅ Imagen convertida a JPEG, tamaño:', base64.length);
+          } catch (jpegError) {
+            console.warn('⚠️ Error con JPEG, intentando PNG:', jpegError);
+            base64 = canvas.toDataURL('image/png').split(',')[1];
+            console.log('✅ Imagen convertida a PNG, tamaño:', base64.length);
+          }
+          
+          // Verificar que la imagen no esté vacía
+          if (!base64 || base64.length < 100) {
+            reject(new Error('La imagen convertida está vacía o es muy pequeña'));
+            return;
+          }
+          
           resolve(base64);
         } catch (error) {
-          reject(new Error('Error convirtiendo imagen a base64'));
+          console.error('❌ Error en la conversión:', error);
+          reject(new Error(`Error convirtiendo imagen a base64: ${error instanceof Error ? error.message : 'Error desconocido'}`));
         }
       };
       
-      img.onerror = () => {
-        reject(new Error('Error cargando imagen'));
+      img.onerror = (error) => {
+        console.error('❌ Error cargando imagen:', error);
+        reject(new Error(`Error cargando imagen: ${imageUrl}`));
       };
+      
+      // Timeout para evitar que se cuelgue
+      setTimeout(() => {
+        reject(new Error('Timeout cargando imagen'));
+      }, 30000); // 30 segundos
       
       img.src = imageUrl;
     });
@@ -291,13 +400,22 @@ IMPORTANTE: Responde ÚNICAMENTE con el formato mostrado arriba, reemplazando lo
     }
   }
 
-  async testImageAnalysis(imageData: ImageData): Promise<boolean> {
+  async testImageAnalysis(imageData: ImageData): Promise<{ success: boolean; error?: string; details?: any }> {
     if (!this.settings.enabled || !this.settings.apiKey) {
-      return false;
+      return { success: false, error: 'ChatGPT no está configurado' };
     }
 
     try {
+      console.log('🧪 Iniciando prueba de análisis de imagen:', imageData.name);
+      
+      // Validar la imagen primero
+      const validation = await this.validateImage(imageData);
+      if (!validation.isValid) {
+        return { success: false, error: validation.error };
+      }
+      
       const base64Image = await this.convertImageToBase64(imageData.url);
+      console.log('✅ Imagen convertida para prueba, tamaño:', base64Image.length);
       
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -329,10 +447,85 @@ IMPORTANTE: Responde ÚNICAMENTE con el formato mostrado arriba, reemplazando lo
         })
       });
 
-      return response.ok;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return { 
+          success: false, 
+          error: `HTTP ${response.status}: ${errorData.error?.message || response.statusText}`,
+          details: { status: response.status, errorData }
+        };
+      }
+
+      const data = await response.json();
+      console.log('✅ Prueba de análisis exitosa:', data);
+      
+      return { 
+        success: true, 
+        details: { 
+          content: data.choices[0]?.message?.content,
+          usage: data.usage 
+        } 
+      };
     } catch (error) {
-      console.error('Error probando análisis de imagen:', error);
-      return false;
+      console.error('❌ Error probando análisis de imagen:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Error desconocido',
+        details: { originalError: error }
+      };
+    }
+  }
+
+  async validateImage(imageData: ImageData): Promise<{ isValid: boolean; error?: string }> {
+    try {
+      // Validar datos básicos
+      if (!imageData.url || imageData.url.trim() === '') {
+        return { isValid: false, error: 'La imagen no tiene una URL válida' };
+      }
+      
+      if (!imageData.name || imageData.name.trim() === '') {
+        return { isValid: false, error: 'La imagen no tiene un nombre válido' };
+      }
+
+      // Intentar cargar la imagen
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      return new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          resolve({ isValid: false, error: 'Timeout cargando la imagen' });
+        }, 10000); // 10 segundos
+
+        img.onload = () => {
+          clearTimeout(timeout);
+          
+          // Verificar dimensiones
+          if (img.width === 0 || img.height === 0) {
+            resolve({ isValid: false, error: 'La imagen tiene dimensiones inválidas' });
+            return;
+          }
+          
+          // Verificar que no sea demasiado grande
+          if (img.width > 10000 || img.height > 10000) {
+            resolve({ isValid: false, error: 'La imagen es demasiado grande' });
+            return;
+          }
+          
+          resolve({ isValid: true });
+        };
+        
+        img.onerror = () => {
+          clearTimeout(timeout);
+          resolve({ isValid: false, error: 'No se pudo cargar la imagen' });
+        };
+        
+        img.src = imageData.url;
+      });
+    } catch (error) {
+      return { 
+        isValid: false, 
+        error: `Error validando imagen: ${error instanceof Error ? error.message : 'Error desconocido'}` 
+      };
     }
   }
 }
