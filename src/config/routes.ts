@@ -42,8 +42,13 @@ export const isCurrentRoute = (route: string): boolean => {
 export const isGmailCallbackPage = (): boolean => {
   const currentPath = getCurrentRoute();
   const currentSearch = window.location.search;
+  const currentHref = window.location.href;
   
+  // Verificar múltiples patrones para detectar callback
   return currentPath === ROUTES.GMAIL_CALLBACK || 
+         currentPath === '//auth/callback' ||  // Manejar doble barra
+         currentPath.includes('/auth/callback') ||  // Cualquier variación
          currentSearch.includes('code=') || 
-         currentSearch.includes('error=');
+         currentSearch.includes('error=') ||
+         currentHref.includes('/auth/callback');
 };

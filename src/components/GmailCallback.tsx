@@ -17,10 +17,16 @@ export const GmailCallback: React.FC<GmailCallbackProps> = ({
   useEffect(() => {
     const handleCallback = async () => {
       try {
+        console.log('🔄 Procesando callback de Gmail API...');
+        console.log('📍 URL actual:', window.location.href);
+        
         // Obtener el código de autorización de la URL
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
         const error = urlParams.get('error');
+
+        console.log('🔍 Código encontrado:', code ? 'Sí' : 'No');
+        console.log('❌ Error encontrado:', error || 'No');
 
         if (error) {
           throw new Error(`Error de autorización: ${error}`);
@@ -30,8 +36,12 @@ export const GmailCallback: React.FC<GmailCallbackProps> = ({
           throw new Error('No se recibió el código de autorización');
         }
 
+        console.log('🔄 Intercambiando código por tokens...');
+        
         // Intercambiar el código por tokens
         const tokens = await gmailApiService.getTokensFromCode(code);
+        
+        console.log('✅ Tokens obtenidos exitosamente');
         
         setStatus('success');
         setMessage('Autorización exitosa! Cerrando ventana...');
@@ -40,20 +50,26 @@ export const GmailCallback: React.FC<GmailCallbackProps> = ({
         onAuthSuccess(tokens.accessToken, tokens.refreshToken);
         
         // Enviar mensaje a la ventana padre
-        if (window.opener) {
+        if (window.opener && !window.opener.closed) {
+          console.log('📤 Enviando mensaje a ventana padre...');
           window.opener.postMessage({
             type: 'GMAIL_AUTH_SUCCESS',
             accessToken: tokens.accessToken,
             refreshToken: tokens.refreshToken
           }, window.location.origin);
+        } else {
+          console.log('⚠️ No hay ventana padre o está cerrada');
         }
         
         // Cerrar la ventana después de un breve delay
         setTimeout(() => {
+          console.log('🚪 Cerrando ventana...');
           window.close();
         }, 2000);
 
       } catch (error) {
+        console.error('❌ Error en callback:', error);
+        
         setStatus('error');
         setMessage(error instanceof Error ? error.message : 'Error desconocido');
         
@@ -61,7 +77,8 @@ export const GmailCallback: React.FC<GmailCallbackProps> = ({
         onAuthError(error instanceof Error ? error.message : 'Error desconocido');
         
         // Enviar mensaje de error a la ventana padre
-        if (window.opener) {
+        if (window.opener && !window.opener.closed) {
+          console.log('📤 Enviando mensaje de error a ventana padre...');
           window.opener.postMessage({
             type: 'GMAIL_AUTH_ERROR',
             error: error instanceof Error ? error.message : 'Error desconocido'
@@ -70,6 +87,7 @@ export const GmailCallback: React.FC<GmailCallbackProps> = ({
         
         // Cerrar la ventana después de un delay
         setTimeout(() => {
+          console.log('🚪 Cerrando ventana por error...');
           window.close();
         }, 3000);
       }

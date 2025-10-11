@@ -123,6 +123,7 @@ function App() {
         
         // Verificar si estamos en la página de callback de Gmail
         if (isGmailCallbackPage()) {
+          console.log('🔄 Detectada página de callback de Gmail');
           setCurrentPage('gmail-callback');
           setIsLoading(false);
           return;

@@ -18,6 +18,7 @@
     "config:example": "node -e \"require('./scripts/config.js').generateEnvExample()\"",
     "env:check": "node -e \"const config = require('./scripts/config.js').loadEnvFile(); console.log('Variables cargadas:', Object.keys(config).length);\"",
     "gmail:config": "node scripts/gmail-config.js",
+    "test:callback": "node scripts/test-callback-detection.js",
     "gmail:auth": "node -e \"require('./scripts/gmail-config.js').generateAuthUrl()\"",
     "docker:build": "docker build -t convertidor-imagenes .",
     "docker:run": "docker run -p 3000:3000 convertidor-imagenes"

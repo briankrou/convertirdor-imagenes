@@ -133,9 +133,17 @@ export const GmailApiConfig: React.FC<GmailApiConfigProps> = ({
       
       // Escuchar el mensaje de la ventana de autorización
       const messageListener = (event: MessageEvent) => {
-        if (event.origin !== window.location.origin) return;
+        console.log('📨 Mensaje recibido:', event.data);
+        console.log('🌐 Origen:', event.origin);
+        console.log('🎯 Origen esperado:', window.location.origin);
+        
+        if (event.origin !== window.location.origin) {
+          console.log('⚠️ Origen no coincide, ignorando mensaje');
+          return;
+        }
         
         if (event.data.type === 'GMAIL_AUTH_SUCCESS') {
+          console.log('✅ Autorización exitosa recibida');
           const { accessToken, refreshToken } = event.data;
           
           onSettingsChange({
@@ -144,7 +152,9 @@ export const GmailApiConfig: React.FC<GmailApiConfigProps> = ({
             refreshToken
           });
           
-          authWindow?.close();
+          if (authWindow && !authWindow.closed) {
+            authWindow.close();
+          }
           window.removeEventListener('message', messageListener);
           setIsAuthorizing(false);
           
@@ -160,7 +170,11 @@ export const GmailApiConfig: React.FC<GmailApiConfigProps> = ({
             }
           );
         } else if (event.data.type === 'GMAIL_AUTH_ERROR') {
-          authWindow?.close();
+          console.log('❌ Error de autorización recibido:', event.data.error);
+          
+          if (authWindow && !authWindow.closed) {
+            authWindow.close();
+          }
           window.removeEventListener('message', messageListener);
           setIsAuthorizing(false);
           
