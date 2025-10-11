@@ -1,0 +1,40 @@
+# Configuración para EasyPanel
+name: convertidor-imagenes
+description: Sistema de conversión de imágenes con IA
+
+# Configuración del servicio
+services:
+  - name: convertidor-imagenes
+    type: app
+    source:
+      type: git
+      repository: # URL de tu repositorio Git
+      branch: main
+    build:
+      type: nodejs
+      nodeVersion: 18
+      buildCommand: npm run build
+      startCommand: npm start
+    environment:
+      - name: NODE_ENV
+        value: production
+      - name: PORT
+        value: 3000
+      - name: HOST
+        value: 0.0.0.0
+      - name: VITE_DEV_PORT
+        value: 5173
+      - name: VITE_DEV_HOST
+        value: 0.0.0.0
+    domains:
+      - name: convertidor-imagenes.yourdomain.com
+        ssl: true
+    resources:
+      cpu: 0.5
+      memory: 512
+    healthCheck:
+      path: /
+      port: 3000
+      interval: 30
+      timeout: 10
+      retries: 3

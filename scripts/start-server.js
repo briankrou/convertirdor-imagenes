@@ -20,11 +20,17 @@ config.applyConfig(envConfig);
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
+// Configuración específica para EasyPanel
+const isProduction = process.env.NODE_ENV === 'production';
+const isEasyPanel = process.env.EASYPANEL === 'true' || process.env.PORT;
+
 console.log('🚀 Iniciando servidor de producción...');
 console.log(`📋 Configuración:`);
 console.log(`   Puerto: ${PORT}`);
 console.log(`   Host: ${HOST}`);
-console.log(`   Modo: Producción (Vite Preview)`);
+console.log(`   Modo: ${isProduction ? 'Producción' : 'Desarrollo'}`);
+console.log(`   Plataforma: ${isEasyPanel ? 'EasyPanel' : 'Local'}`);
+console.log(`   Servidor: Vite Preview`);
 console.log('');
 
 // Verificar que el directorio dist existe

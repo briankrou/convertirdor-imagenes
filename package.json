@@ -12,9 +12,12 @@
     "start:env": "node -r dotenv/config simple-server.js",
     "start:vite": "vite preview --host 0.0.0.0 --port 3000",
     "dev:vite": "vite --host localhost --port 5173",
+    "start:easypanel": "node scripts/easypanel-start.js",
     "config": "node scripts/config.js",
     "config:example": "node -e \"require('./scripts/config.js').generateEnvExample()\"",
-    "env:check": "node -e \"const config = require('./scripts/config.js').loadEnvFile(); console.log('Variables cargadas:', Object.keys(config).length);\""
+    "env:check": "node -e \"const config = require('./scripts/config.js').loadEnvFile(); console.log('Variables cargadas:', Object.keys(config).length);\"",
+    "docker:build": "docker build -t convertidor-imagenes .",
+    "docker:run": "docker run -p 3000:3000 convertidor-imagenes"
   },
   "dependencies": {
     "dotenv": "^17.2.3",
