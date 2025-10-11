@@ -232,6 +232,52 @@ function App() {
     }
   }, [addNotification]);
 
+  // Función para solo convertir imágenes (sin generar descripciones)
+  const handleConvertOnly = useCallback(async () => {
+    if (images.length === 0) {
+      addNotification({
+        type: 'error',
+        title: 'No hay imágenes',
+        message: 'Selecciona al menos una imagen para convertir'
+      });
+      return;
+    }
+
+    setIsConverting(true);
+    const newConvertedImages: { blob: Blob; filename: string }[] = [];
+
+    try {
+      for (let i = 0; i < images.length; i++) {
+        const image = images[i];
+        
+        // Convertir la imagen a Blob
+        const blob = await convertSingleImageToBlob(image, settings);
+        
+        // Generar nombre de archivo
+        const filename = generateFileName(image.name, settings, i + 1);
+        
+        newConvertedImages.push({ blob, filename });
+      }
+
+      setConvertedImages(newConvertedImages);
+      
+      addNotification({
+        type: 'success',
+        title: 'Conversión completada',
+        message: `${images.length} imagen${images.length > 1 ? 'es' : ''} convertida${images.length > 1 ? 's' : ''} exitosamente`
+      });
+    } catch (error) {
+      console.error('Error converting images:', error);
+      addNotification({
+        type: 'error',
+        title: 'Error en la conversión',
+        message: 'No se pudieron convertir las imágenes'
+      });
+    } finally {
+      setIsConverting(false);
+    }
+  }, [images, settings, addNotification]);
+
   const handleConvert = useCallback(async () => {
     if (images.length === 0) {
       addNotification({
@@ -672,6 +718,7 @@ function App() {
           settings={settings}
           onSettingsChange={handleConversionSettingsChange}
           onConvert={handleConvert}
+          onConvertOnly={handleConvertOnly}
           onDownloadConverted={handleDownloadConverted}
           onClearAll={handleClearAll}
           onGenerateDescriptions={handleGenerateDescriptions}

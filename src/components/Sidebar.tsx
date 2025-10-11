@@ -6,6 +6,7 @@ interface SidebarProps {
   settings: ConversionSettings;
   onSettingsChange: (settings: ConversionSettings) => void;
   onConvert: () => void;
+  onConvertOnly: () => void;
   onDownloadConverted?: () => void;
   onClearAll: () => void;
   onGenerateDescriptions?: () => void;
@@ -22,6 +23,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   settings,
   onSettingsChange,
   onConvert,
+  onConvertOnly,
   onDownloadConverted,
   onClearAll,
   onGenerateDescriptions,
@@ -208,16 +210,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
 
         {/* Conversion Actions */}
-        <button
-          onClick={onConvert}
-          disabled={imageCount === 0 || isConverting || isGeneratingDescriptions}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg font-medium flex items-center justify-center space-x-2 transition-colors"
-        >
-          <Package className="w-5 h-5" />
-          <span>
-            {isConverting ? 'Convirtiendo...' : 'Convertir Imágenes'}
-          </span>
-        </button>
+        <div className="space-y-2">
+          <button
+            onClick={onConvertOnly}
+            disabled={imageCount === 0 || isConverting || isGeneratingDescriptions}
+            className="w-full bg-gray-600 hover:bg-gray-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg font-medium flex items-center justify-center space-x-2 transition-colors"
+          >
+            <Package className="w-5 h-5" />
+            <span>
+              {isConverting ? 'Convirtiendo...' : 'Solo Convertir Imágenes'}
+            </span>
+          </button>
+
+          <button
+            onClick={onConvert}
+            disabled={imageCount === 0 || isConverting || isGeneratingDescriptions}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg font-medium flex items-center justify-center space-x-2 transition-colors"
+          >
+            <Brain className="w-5 h-5" />
+            <span>
+              {isConverting ? 'Convirtiendo...' : 'Convertir + Generar Descripciones'}
+            </span>
+          </button>
+        </div>
 
         {/* Download Actions */}
         {convertedCount > 0 && (
