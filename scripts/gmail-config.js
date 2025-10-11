@@ -121,8 +121,8 @@ function displayGmailConfig() {
   }
   
   console.log('🔗 URLs para configurar en Google Cloud Console:');
-  console.log(`   Desarrollo: ${process.env.GMAIL_REDIRECT_URI_DEV || 'http://localhost:3000/auth/callback'}`);
-  console.log(`   Producción (EasyPanel): ${process.env.GMAIL_REDIRECT_URI_PROD || 'https://dbkoko-convertidor-imagenes.mvitku.easypanel.host/auth/callback'}`);
+  console.log(`   Desarrollo: ${process.env.GMAIL_REDIRECT_URI_DEV || 'http://localhost:3000/auth/callback.html'}`);
+  console.log(`   Producción (EasyPanel): ${process.env.GMAIL_REDIRECT_URI_PROD || 'https://dbkoko-convertidor-imagenes.mvitku.easypanel.host/auth/callback.html'}`);
   console.log('');
   console.log('⚠️  IMPORTANTE: La URL de EasyPanel es FIJA y NO se puede cambiar.');
   console.log('   Solo se puede copiar y pegar en Google Cloud Console.');

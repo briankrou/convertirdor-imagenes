@@ -53,7 +53,7 @@ function App() {
   const [gmailApiSettings, setGmailApiSettings] = useState<GmailApiSettings>({
     clientId: '',
     clientSecret: '',
-    redirectUri: 'http://localhost:3000/auth/callback',
+    redirectUri: 'https://dbkoko-convertidor-imagenes.mvitku.easypanel.host/auth/callback.html',
     fromEmail: '',
     fromName: 'Sistema de Recuperación',
     enabled: false
@@ -124,6 +124,8 @@ function App() {
         // Verificar si estamos en la página de callback de Gmail
         if (isGmailCallbackPage()) {
           console.log('🔄 Detectada página de callback de Gmail');
+          console.log('📍 URL actual:', window.location.href);
+          console.log('🪟 Es ventana popup:', window.opener !== null);
           setCurrentPage('gmail-callback');
           setIsLoading(false);
           return;

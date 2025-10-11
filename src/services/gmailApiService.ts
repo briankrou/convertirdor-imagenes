@@ -86,14 +86,20 @@ class GmailApiService {
       'https://www.googleapis.com/auth/gmail.compose'
     ];
 
+    // Usar la URL del callback HTML estático
+    const redirectUri = this.config.redirectUri || `${window.location.origin}/auth/callback.html`;
+
     const params = new URLSearchParams({
       client_id: this.config.clientId,
-      redirect_uri: this.config.redirectUri,
+      redirect_uri: redirectUri,
       response_type: 'code',
       scope: scopes.join(' '),
       access_type: 'offline',
       prompt: 'consent'
     });
+
+    console.log('🔗 [Gmail API] URL de autorización generada:', `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+    console.log('🔗 [Gmail API] Redirect URI:', redirectUri);
 
     return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
   }
