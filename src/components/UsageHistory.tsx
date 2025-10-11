@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, BarChart3, DollarSign, Zap, Clock, CheckCircle, XCircle, Trash2, Download } from 'lucide-react';
+import { ArrowLeft, BarChart3, DollarSign, Zap, Clock, CheckCircle, XCircle, Trash2, Download, Filter, X } from 'lucide-react';
 import { UsageRecord, UsageStats } from '../types';
 
 interface UsageHistoryProps {
@@ -20,12 +20,28 @@ const MODEL_PRICING = {
 
 export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
   const [usageRecords, setUsageRecords] = useState<UsageRecord[]>([]);
+  const [filteredRecords, setFilteredRecords] = useState<UsageRecord[]>([]);
   const [stats, setStats] = useState<UsageStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Filtros
+  const [dateFilter, setDateFilter] = useState<{
+    startDate: string;
+    endDate: string;
+  }>({
+    startDate: '',
+    endDate: ''
+  });
+  const [modelFilter, setModelFilter] = useState<string>('all');
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     loadUsageHistory();
   }, []);
+
+  useEffect(() => {
+    applyFilters();
+  }, [usageRecords, dateFilter, modelFilter]);
 
   const loadUsageHistory = () => {
     try {
@@ -40,6 +56,30 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const applyFilters = () => {
+    let filtered = [...usageRecords];
+
+    // Filtro por modelo
+    if (modelFilter !== 'all') {
+      filtered = filtered.filter(record => record.model === modelFilter);
+    }
+
+    // Filtro por fecha
+    if (dateFilter.startDate) {
+      const startDate = new Date(dateFilter.startDate);
+      filtered = filtered.filter(record => new Date(record.timestamp) >= startDate);
+    }
+
+    if (dateFilter.endDate) {
+      const endDate = new Date(dateFilter.endDate);
+      endDate.setHours(23, 59, 59, 999); // Incluir todo el día
+      filtered = filtered.filter(record => new Date(record.timestamp) <= endDate);
+    }
+
+    setFilteredRecords(filtered);
+    calculateStats(filtered);
   };
 
   const calculateStats = (records: UsageRecord[]) => {
@@ -87,16 +127,27 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
     if (window.confirm('¿Estás seguro de que quieres eliminar todo el historial de uso? Esta acción no se puede deshacer.')) {
       localStorage.removeItem('chatgpt-usage-history');
       setUsageRecords([]);
+      setFilteredRecords([]);
       setStats(null);
     }
   };
 
+  const clearFilters = () => {
+    setDateFilter({ startDate: '', endDate: '' });
+    setModelFilter('all');
+  };
+
+  const getUniqueModels = () => {
+    const models = [...new Set(usageRecords.map(record => record.model))];
+    return models.sort();
+  };
+
   const exportHistory = () => {
-    if (usageRecords.length === 0) return;
+    if (filteredRecords.length === 0) return;
 
     const csvContent = [
       ['Fecha', 'Modelo', 'Imagen', 'Tokens de Entrada', 'Tokens de Salida', 'Total Tokens', 'Costo (USD)', 'Estado'],
-      ...usageRecords.map(record => [
+      ...filteredRecords.map(record => [
         new Date(record.timestamp).toLocaleString(),
         record.model,
         record.imageName,
@@ -168,6 +219,17 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
             {usageRecords.length > 0 && (
               <>
                 <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 transition-colors ${
+                    showFilters 
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                  }`}
+                >
+                  <Filter className="w-4 h-4" />
+                  <span>Filtros</span>
+                </button>
+                <button
                   onClick={exportHistory}
                   className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center space-x-2 transition-colors"
                 >
@@ -186,6 +248,85 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
           </div>
         </div>
       </div>
+
+      {/* Filtros */}
+      {showFilters && usageRecords.length > 0 && (
+        <div className="bg-white border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium text-gray-900">Filtros</h3>
+            <button
+              onClick={clearFilters}
+              className="text-sm text-gray-500 hover:text-gray-700 flex items-center space-x-1"
+            >
+              <X className="w-4 h-4" />
+              <span>Limpiar filtros</span>
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Filtro por fecha de inicio */}
+            <div>
+              <label htmlFor="start-date" className="block text-sm font-medium text-gray-700 mb-1">
+                Fecha de inicio
+              </label>
+              <input
+                type="date"
+                id="start-date"
+                value={dateFilter.startDate}
+                onChange={(e) => setDateFilter(prev => ({ ...prev, startDate: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              />
+            </div>
+
+            {/* Filtro por fecha de fin */}
+            <div>
+              <label htmlFor="end-date" className="block text-sm font-medium text-gray-700 mb-1">
+                Fecha de fin
+              </label>
+              <input
+                type="date"
+                id="end-date"
+                value={dateFilter.endDate}
+                onChange={(e) => setDateFilter(prev => ({ ...prev, endDate: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              />
+            </div>
+
+            {/* Filtro por modelo */}
+            <div>
+              <label htmlFor="model-filter" className="block text-sm font-medium text-gray-700 mb-1">
+                Modelo
+              </label>
+              <select
+                id="model-filter"
+                value={modelFilter}
+                onChange={(e) => setModelFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              >
+                <option value="all">Todos los modelos</option>
+                {getUniqueModels().map(model => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Información de filtros activos */}
+          {(dateFilter.startDate || dateFilter.endDate || modelFilter !== 'all') && (
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Filtros activos:</strong>
+                {dateFilter.startDate && ` Desde ${new Date(dateFilter.startDate).toLocaleDateString()}`}
+                {dateFilter.endDate && ` Hasta ${new Date(dateFilter.endDate).toLocaleDateString()}`}
+                {modelFilter !== 'all' && ` Modelo: ${modelFilter}`}
+                {' '}({filteredRecords.length} de {usageRecords.length} registros)
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
@@ -279,7 +420,7 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {usageRecords
+                    {filteredRecords
                       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
                       .map((record) => (
                         <tr key={record.id} className="hover:bg-gray-50">
