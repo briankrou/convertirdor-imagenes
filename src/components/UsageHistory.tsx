@@ -47,24 +47,58 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
   const loadUsageHistory = () => {
     try {
       const stored = localStorage.getItem('chatgpt-usage-history');
-      if (stored) {
-        const allRecords: UsageRecord[] = JSON.parse(stored);
-        
-        // Filtrar registros según el tipo de usuario
-        let filteredRecords: UsageRecord[];
-        if (isRoot) {
-          // Root ve todos los registros
-          filteredRecords = allRecords;
-        } else {
-          // Usuario normal solo ve sus propios registros
-          filteredRecords = allRecords.filter(record => 
-            record.imageName.includes(currentUser?.username || '')
-          );
+      const adminBackup = localStorage.getItem('chatgpt-usage-history-admin-backup');
+      
+      let allRecords: UsageRecord[] = [];
+      
+      if (isRoot) {
+        // Para administradores, cargar desde el respaldo si existe, sino desde el historial normal
+        if (adminBackup) {
+          allRecords = JSON.parse(adminBackup);
+        } else if (stored) {
+          allRecords = JSON.parse(stored);
+          // Crear respaldo inicial
+          localStorage.setItem('chatgpt-usage-history-admin-backup', JSON.stringify(allRecords));
         }
         
-        setUsageRecords(filteredRecords);
-        calculateStats(filteredRecords);
+        // Sincronizar respaldo con historial actual (por si hay nuevos registros)
+        if (stored && adminBackup) {
+          const currentRecords: UsageRecord[] = JSON.parse(stored);
+          const backupRecords: UsageRecord[] = JSON.parse(adminBackup);
+          
+          // Encontrar registros nuevos que no están en el respaldo
+          const newRecords = currentRecords.filter(current => 
+            !backupRecords.some(backup => backup.id === current.id)
+          );
+          
+          // Agregar registros nuevos al respaldo
+          if (newRecords.length > 0) {
+            const updatedBackup = [...backupRecords, ...newRecords];
+            localStorage.setItem('chatgpt-usage-history-admin-backup', JSON.stringify(updatedBackup));
+            allRecords = updatedBackup;
+          }
+        }
+      } else {
+        // Para usuarios normales, cargar solo desde el historial normal
+        if (stored) {
+          allRecords = JSON.parse(stored);
+        }
       }
+      
+      // Filtrar registros según el tipo de usuario
+      let filteredRecords: UsageRecord[];
+      if (isRoot) {
+        // Root ve todos los registros (incluyendo los eliminados por usuarios)
+        filteredRecords = allRecords;
+      } else {
+        // Usuario normal solo ve sus propios registros
+        filteredRecords = allRecords.filter(record => 
+          record.imageName.includes(currentUser?.username || '')
+        );
+      }
+      
+      setUsageRecords(filteredRecords);
+      calculateStats(filteredRecords);
     } catch (error) {
       console.error('Error loading usage history:', error);
     } finally {
@@ -142,6 +176,7 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
       // Administrador puede eliminar todo el historial
       if (window.confirm('¿Estás seguro de que quieres eliminar TODO el historial de uso de TODOS los usuarios? Esta acción no se puede deshacer.')) {
         localStorage.removeItem('chatgpt-usage-history');
+        localStorage.removeItem('chatgpt-usage-history-admin-backup');
         setUsageRecords([]);
         setFilteredRecords([]);
         setStats(null);
@@ -157,6 +192,8 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
   const clearUserHistory = () => {
     try {
       const stored = localStorage.getItem('chatgpt-usage-history');
+      const adminBackup = localStorage.getItem('chatgpt-usage-history-admin-backup');
+      
       if (stored) {
         const allRecords: UsageRecord[] = JSON.parse(stored);
         const currentUsername = currentUser?.username || '';
@@ -168,6 +205,13 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
         
         // Guardar los registros filtrados
         localStorage.setItem('chatgpt-usage-history', JSON.stringify(filteredRecords));
+        
+        // Actualizar el respaldo de administradores si existe
+        if (adminBackup) {
+          const adminRecords: UsageRecord[] = JSON.parse(adminBackup);
+          // El respaldo de administradores mantiene TODOS los registros, incluyendo los eliminados
+          // No se modifica el respaldo cuando un usuario normal elimina su historial
+        }
         
         // Actualizar el estado local
         setUsageRecords([]);
@@ -183,6 +227,8 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
     if (window.confirm(`¿Estás seguro de que quieres eliminar todo el historial de uso de "${username}"? Esta acción no se puede deshacer.`)) {
       try {
         const stored = localStorage.getItem('chatgpt-usage-history');
+        const adminBackup = localStorage.getItem('chatgpt-usage-history-admin-backup');
+        
         if (stored) {
           const allRecords: UsageRecord[] = JSON.parse(stored);
           
@@ -193,10 +239,19 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
           
           // Guardar los registros filtrados
           localStorage.setItem('chatgpt-usage-history', JSON.stringify(filteredRecords));
-          
-          // Recargar el historial
-          loadUsageHistory();
         }
+        
+        // También actualizar el respaldo de administradores
+        if (adminBackup) {
+          const adminRecords: UsageRecord[] = JSON.parse(adminBackup);
+          const filteredAdminRecords = adminRecords.filter(record => 
+            !record.imageName.includes(`${username}_`)
+          );
+          localStorage.setItem('chatgpt-usage-history-admin-backup', JSON.stringify(filteredAdminRecords));
+        }
+        
+        // Recargar el historial
+        loadUsageHistory();
       } catch (error) {
         console.error('Error deleting user records:', error);
       }
@@ -313,6 +368,11 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
               <h1 className="text-xl font-semibold text-gray-900">
                 {isRoot ? 'Historial de Uso - ChatGPT (Administrador)' : 'Mi Consumo - ChatGPT'}
               </h1>
+              {isRoot && (
+                <div className="ml-4 px-3 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                  Vista Completa
+                </div>
+              )}
             </div>
           </div>
           
@@ -558,9 +618,14 @@ export const UsageHistory: React.FC<UsageHistoryProps> = ({ onBack }) => {
                   {isRoot ? 'Registro Detallado (Todos los Usuarios)' : 'Mi Registro de Uso'}
                 </h2>
                 {isRoot && (
-                  <p className="text-sm text-gray-600 mt-1">
-                    Vista completa del consumo de todos los usuarios del sistema
-                  </p>
+                  <div className="mt-1">
+                    <p className="text-sm text-gray-600">
+                      Vista completa del consumo de todos los usuarios del sistema
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      ℹ️ Incluye registros eliminados por usuarios normales - Solo administradores pueden ver esta información
+                    </p>
+                  </div>
                 )}
               </div>
               

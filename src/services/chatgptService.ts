@@ -38,10 +38,17 @@ export class ChatGPTService {
 
   private saveUsageRecord(record: UsageRecord): void {
     try {
+      // Guardar en el historial normal
       const existing = localStorage.getItem('chatgpt-usage-history');
       const records: UsageRecord[] = existing ? JSON.parse(existing) : [];
       records.push(record);
       localStorage.setItem('chatgpt-usage-history', JSON.stringify(records));
+      
+      // También guardar en el respaldo de administradores
+      const adminBackup = localStorage.getItem('chatgpt-usage-history-admin-backup');
+      const adminRecords: UsageRecord[] = adminBackup ? JSON.parse(adminBackup) : [];
+      adminRecords.push(record);
+      localStorage.setItem('chatgpt-usage-history-admin-backup', JSON.stringify(adminRecords));
     } catch (error) {
       console.error('Error saving usage record:', error);
     }
