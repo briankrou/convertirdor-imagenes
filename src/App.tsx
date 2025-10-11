@@ -6,6 +6,7 @@ import { DropZone } from './components/DropZone';
 import { NotificationContainer } from './components/NotificationContainer';
 import { ChatGPTConfig } from './components/ChatGPTConfig';
 import { PromptConfig } from './components/PromptConfig';
+import { UsageHistory } from './components/UsageHistory';
 import { ImageData, ConversionSettings, ChatGPTSettings, PromptSettings, ImageDescription, Notification } from './types';
 import { convertImages } from './utils/imageConverter';
 import { ChatGPTService } from './services/chatgptService';
@@ -36,7 +37,7 @@ function App() {
   const [convertedImages, setConvertedImages] = useState<{ blob: Blob; filename: string }[]>([]);
   const [isConverting, setIsConverting] = useState(false);
   const [isGeneratingDescriptions, setIsGeneratingDescriptions] = useState(false);
-  const [currentPage, setCurrentPage] = useState<'main' | 'chatgpt-config' | 'prompt-config'>('main');
+  const [currentPage, setCurrentPage] = useState<'main' | 'chatgpt-config' | 'prompt-config' | 'usage-history'>('main');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -637,6 +638,14 @@ function App() {
     );
   }
 
+  if (currentPage === 'usage-history') {
+    return (
+      <UsageHistory
+        onBack={() => setCurrentPage('main')}
+      />
+    );
+  }
+
   // Mostrar pantalla de carga mientras se inicializa
   if (isLoading) {
     return (
@@ -655,6 +664,7 @@ function App() {
         onChatGPTConfig={() => setCurrentPage('chatgpt-config')}
         onPromptConfig={() => setCurrentPage('prompt-config')}
         onClearConfig={handleClearConfig}
+        onUsageHistory={() => setCurrentPage('usage-history')}
       />
       
       <div className="flex-1 flex overflow-hidden">
@@ -678,14 +688,14 @@ function App() {
           {images.length === 0 ? (
             <DropZone onFilesSelected={handleFilesSelected} />
           ) : (
-        <ImageGrid 
-          images={images}
-          onRemoveImage={handleRemoveImage}
-          onFilesSelected={handleFilesSelected}
-          settings={settings}
-          onNotification={addNotification}
+            <ImageGrid 
+              images={images}
+              onRemoveImage={handleRemoveImage}
+              onFilesSelected={handleFilesSelected}
+              settings={settings}
+              onNotification={addNotification}
           imageDescriptions={imageDescriptions}
-        />
+            />
           )}
         </main>
       </div>

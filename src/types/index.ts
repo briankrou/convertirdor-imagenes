@@ -38,6 +38,29 @@ export interface ImageDescription {
   altText: string;
 }
 
+export interface UsageRecord {
+  id: string;
+  timestamp: string;
+  model: string;
+  imageName: string;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  cost: number;
+  success: boolean;
+  error?: string;
+}
+
+export interface UsageStats {
+  totalRequests: number;
+  totalTokens: number;
+  totalCost: number;
+  successfulRequests: number;
+  failedRequests: number;
+  averageCostPerRequest: number;
+  mostUsedModel: string;
+}
+
 export interface Notification {
   id: string;
   type: 'success' | 'error' | 'info' | 'warning';

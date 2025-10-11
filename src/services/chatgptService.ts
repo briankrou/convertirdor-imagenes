@@ -1,4 +1,4 @@
-import { ChatGPTSettings, ImageData, PromptSettings } from '../types';
+import { ChatGPTSettings, ImageData, PromptSettings, UsageRecord } from '../types';
 
 export interface ChatGPTResponse {
   title: string;
@@ -10,8 +10,43 @@ export interface ChatGPTResponse {
 export class ChatGPTService {
   private settings: ChatGPTSettings;
 
+  // Precios por token para cada modelo (en USD)
+  private static readonly MODEL_PRICING = {
+    'gpt-4o': { input: 0.0025, output: 0.01 },
+    'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
+    'gpt-4-turbo': { input: 0.01, output: 0.03 },
+    'gpt-4': { input: 0.03, output: 0.06 },
+    'gpt-4.1': { input: 0.01, output: 0.03 },
+    'o3': { input: 0.05, output: 0.15 },
+    'o4-mini': { input: 0.00015, output: 0.0006 },
+    'gpt-3.5-turbo': { input: 0.0005, output: 0.0015 }
+  };
+
   constructor(settings: ChatGPTSettings) {
     this.settings = settings;
+  }
+
+  private calculateCost(promptTokens: number, completionTokens: number, model: string): number {
+    const pricing = ChatGPTService.MODEL_PRICING[model as keyof typeof ChatGPTService.MODEL_PRICING];
+    if (!pricing) {
+      console.warn(`Pricing not found for model: ${model}`);
+      return 0;
+    }
+    
+    const inputCost = (promptTokens / 1000) * pricing.input;
+    const outputCost = (completionTokens / 1000) * pricing.output;
+    return inputCost + outputCost;
+  }
+
+  private saveUsageRecord(record: UsageRecord): void {
+    try {
+      const existing = localStorage.getItem('chatgpt-usage-history');
+      const records: UsageRecord[] = existing ? JSON.parse(existing) : [];
+      records.push(record);
+      localStorage.setItem('chatgpt-usage-history', JSON.stringify(records));
+    } catch (error) {
+      console.error('Error saving usage record:', error);
+    }
   }
 
   async generateImageDescription(imageData: ImageData, productDescription?: string, namePrefix?: string, promptSettings?: PromptSettings): Promise<ChatGPTResponse> {
@@ -90,29 +125,66 @@ IMPORTANTE: Responde ÚNICAMENTE con el formato mostrado arriba, reemplazando lo
         throw new Error(`Error de API: ${errorData.error?.message || 'Error desconocido'}`);
       }
 
-      const data = await response.json();
-      const content = data.choices[0]?.message?.content;
+            const data = await response.json();
+            const content = data.choices[0]?.message?.content;
 
-      if (!content) {
-        throw new Error('No se recibió respuesta de ChatGPT');
-      }
+            if (!content) {
+              throw new Error('No se recibió respuesta de ChatGPT');
+            }
 
-      // Intentar parsear el JSON de la respuesta
-      try {
-        const parsedResponse = JSON.parse(content);
-        return {
-          title: parsedResponse.title || 'Título no disponible',
-          description: parsedResponse.description || 'Descripción no disponible',
-          caption: parsedResponse.caption || 'Leyenda no disponible',
-          altText: parsedResponse.altText || 'Texto alternativo no disponible'
-        };
-      } catch (parseError) {
-        // Si no es JSON válido, extraer información del texto
-        return this.parseTextResponse(content);
-      }
+            // Extraer información de uso de la respuesta
+            const usage = data.usage;
+            const promptTokens = usage?.prompt_tokens || 0;
+            const completionTokens = usage?.completion_tokens || 0;
+            const totalTokens = usage?.total_tokens || (promptTokens + completionTokens);
+            const cost = this.calculateCost(promptTokens, completionTokens, this.settings.model);
+
+            // Guardar registro de uso
+            const usageRecord: UsageRecord = {
+              id: Date.now().toString(),
+              timestamp: new Date().toISOString(),
+              model: this.settings.model,
+              imageName: imageData.name,
+              promptTokens,
+              completionTokens,
+              totalTokens,
+              cost,
+              success: true
+            };
+            this.saveUsageRecord(usageRecord);
+
+            // Intentar parsear el JSON de la respuesta
+            try {
+              const parsedResponse = JSON.parse(content);
+              return {
+                title: parsedResponse.title || 'Título no disponible',
+                description: parsedResponse.description || 'Descripción no disponible',
+                caption: parsedResponse.caption || 'Leyenda no disponible',
+                altText: parsedResponse.altText || 'Texto alternativo no disponible'
+              };
+            } catch (parseError) {
+              // Si no es JSON válido, extraer información del texto
+              return this.parseTextResponse(content);
+            }
 
     } catch (error) {
       console.error('Error generando descripción:', error);
+      
+      // Guardar registro de error
+      const errorRecord: UsageRecord = {
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        model: this.settings.model,
+        imageName: imageData.name,
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        cost: 0,
+        success: false,
+        error: error instanceof Error ? error.message : 'Error desconocido'
+      };
+      this.saveUsageRecord(errorRecord);
+      
       throw error;
     }
   }

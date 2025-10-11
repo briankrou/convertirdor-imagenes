@@ -1,13 +1,14 @@
 import React from 'react';
-import { Image, Settings, Brain, FileText, Trash2 } from 'lucide-react';
+import { Image, Settings, Brain, FileText, Trash2, BarChart3 } from 'lucide-react';
 
 interface HeaderProps {
   onChatGPTConfig?: () => void;
   onPromptConfig?: () => void;
   onClearConfig?: () => void;
+  onUsageHistory?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onChatGPTConfig, onPromptConfig, onClearConfig }) => {
+export const Header: React.FC<HeaderProps> = ({ onChatGPTConfig, onPromptConfig, onClearConfig, onUsageHistory }) => {
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-0 flex items-center justify-between shadow-sm">
       <div className="flex items-center space-x-3">
@@ -34,6 +35,13 @@ export const Header: React.FC<HeaderProps> = ({ onChatGPTConfig, onPromptConfig,
           title="Configurar ChatGPT"
         >
           <Brain className="w-5 h-5" />
+        </button>
+        <button 
+          onClick={onUsageHistory}
+          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+          title="Historial de Uso"
+        >
+          <BarChart3 className="w-5 h-5" />
         </button>
         <button 
           onClick={onClearConfig}
