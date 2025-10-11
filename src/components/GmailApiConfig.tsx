@@ -688,7 +688,7 @@ export const GmailApiConfig: React.FC<GmailApiConfigProps> = ({
                     </button>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    URL fija donde Google redirigirá después de la autorización. Solo se puede copiar.
+                    URL fija de EasyPanel donde Google redirigirá después de la autorización. No se puede modificar.
                   </p>
                 </div>
               </div>

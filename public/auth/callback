@@ -104,7 +104,7 @@
               client_secret: gmailSettings.clientSecret,
               code: code,
               grant_type: 'authorization_code',
-              redirect_uri: gmailSettings.redirectUri || window.location.origin + '/auth/callback',
+              redirect_uri: 'https://dbkoko-convertidor-imagenes.mvitku.easypanel.host/auth/callback',
             }),
           });
           

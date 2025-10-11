@@ -132,8 +132,8 @@ class GmailApiService {
       'https://www.googleapis.com/auth/gmail.compose'
     ];
 
-    // Usar la URL del callback (sin .html para compatibilidad)
-    const redirectUri = this.config.redirectUri || `${window.location.origin}/auth/callback`;
+    // URL fija de EasyPanel - no se puede modificar
+    const redirectUri = 'https://dbkoko-convertidor-imagenes.mvitku.easypanel.host/auth/callback';
 
     // Parámetros según documentación oficial de Google OAuth 2.0
     const params = new URLSearchParams({
@@ -176,7 +176,7 @@ class GmailApiService {
           client_secret: this.config.clientSecret,
           code: code,
           grant_type: 'authorization_code',
-          redirect_uri: this.config.redirectUri,
+          redirect_uri: 'https://dbkoko-convertidor-imagenes.mvitku.easypanel.host/auth/callback',
         }),
       });
 

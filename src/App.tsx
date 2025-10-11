@@ -53,7 +53,7 @@ function App() {
   const [gmailApiSettings, setGmailApiSettings] = useState<GmailApiSettings>({
     clientId: '',
     clientSecret: '',
-    redirectUri: 'https://dbkoko-convertidor-imagenes.mvitku.easypanel.host/auth/callback',
+    redirectUri: 'https://dbkoko-convertidor-imagenes.mvitku.easypanel.host/auth/callback', // URL fija de EasyPanel
     fromEmail: '',
     fromName: 'Sistema de Recuperación',
     enabled: false

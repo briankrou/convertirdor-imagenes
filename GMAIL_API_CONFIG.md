@@ -13,6 +13,8 @@
 - **Orígenes JavaScript autorizados**: `https://dbkoko-convertidor-imagenes.mvitku.easypanel.host`
 - **URIs de redirección autorizadas**: `https://dbkoko-convertidor-imagenes.mvitku.easypanel.host/auth/callback`
 
+⚠️ **IMPORTANTE**: La URL de redirección es FIJA y NO se puede modificar. Solo se puede copiar y pegar en Google Cloud Console.
+
 ### 3. **Configuración en la Aplicación**
 - **Client ID**: Copiar desde Google Cloud Console
 - **Client Secret**: Copiar desde Google Cloud Console
