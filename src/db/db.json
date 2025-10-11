@@ -7,7 +7,13 @@
         "quality": 90,
         "imageNamePrefix": "imagen",
         "sdkSuffix": "A5455",
-        "productDescription": ""
+        "productDescription": "",
+        "resize": {
+          "enabled": false,
+          "width": 1920,
+          "height": 1080,
+          "maintainAspectRatio": true
+        }
       },
       "chatGPTSettings": {
         "apiKey": "",

@@ -13,6 +13,12 @@ export interface ConversionSettings {
   imageNamePrefix: string;
   sdkSuffix: string;
   productDescription: string;
+  resize: {
+    enabled: boolean;
+    width: number;
+    height: number;
+    maintainAspectRatio: boolean;
+  };
 }
 
 export interface ChatGPTSettings {
@@ -109,6 +115,12 @@ export interface UserConversionSettings {
   imageNamePrefix: string;
   sdkSuffix: string;
   productDescription: string;
+  resize: {
+    enabled: boolean;
+    width: number;
+    height: number;
+    maintainAspectRatio: boolean;
+  };
 }
 
 export interface UserSettings {

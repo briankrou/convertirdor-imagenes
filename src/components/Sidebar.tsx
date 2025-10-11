@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, Trash2, FileImage, Sliders, Package, Tag, Hash, Brain, FileText } from 'lucide-react';
+import { Download, Trash2, Sliders, Package, Tag, Hash, Brain, FileText, Maximize2, Minimize2 } from 'lucide-react';
 import { ConversionSettings } from '../types';
 
 interface SidebarProps {
@@ -36,11 +36,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   chatGPTEnabled = false
 }) => {
   const formatOptions = [
-    { value: 'jpeg', label: 'JPEG', description: 'Ideal para fotografías' },
-    { value: 'png', label: 'PNG', description: 'Transparencia y calidad' },
-    { value: 'webp', label: 'WebP', description: 'Formato moderno y compacto' },
-    { value: 'gif', label: 'GIF', description: 'Animaciones y colores limitados' },
-    { value: 'bmp', label: 'BMP', description: 'Sin compresión' }
+    { value: 'jpeg', label: 'JPEG' },
+    { value: 'png', label: 'PNG' },
+    { value: 'webp', label: 'WebP' },
+    { value: 'gif', label: 'GIF' },
+    { value: 'bmp', label: 'BMP' }
   ] as const;
 
   const handleFormatChange = (format: ConversionSettings['format']) => {
@@ -63,10 +63,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onSettingsChange({ ...settings, productDescription });
   };
 
+  // Valores por defecto para resize
+  const defaultResize = {
+    enabled: false,
+    width: 1920,
+    height: 1080,
+    maintainAspectRatio: true
+  };
+
+  const resizeSettings = settings.resize || defaultResize;
+
+  const handleResizeEnabledChange = (enabled: boolean) => {
+    onSettingsChange({ 
+      ...settings, 
+      resize: { ...resizeSettings, enabled }
+    });
+  };
+
+  const handleResizeWidthChange = (width: number) => {
+    onSettingsChange({ 
+      ...settings, 
+      resize: { ...resizeSettings, width }
+    });
+  };
+
+  const handleResizeHeightChange = (height: number) => {
+    onSettingsChange({ 
+      ...settings, 
+      resize: { ...resizeSettings, height }
+    });
+  };
+
+  const handleMaintainAspectRatioChange = (maintainAspectRatio: boolean) => {
+    onSettingsChange({ 
+      ...settings, 
+      resize: { ...resizeSettings, maintainAspectRatio }
+    });
+  };
+
   const shouldShowQuality = settings.format === 'jpeg' || settings.format === 'webp';
 
   return (
-    <aside className="w-80 bg-white border-r border-gray-200 flex flex-col">
+    <aside className="w-96 bg-white border-r border-gray-200 flex flex-col">
       <div className="px-6 py-1 border-b border-gray-100">
         <div className="flex items-center space-x-2 mb-4">
           <Sliders className="w-5 h-5 text-gray-600" />
@@ -74,55 +112,55 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
         
         <div className="space-y-6">
-          {/* Formato de salida */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              Formato de salida
-            </label>
-            <select
-              value={settings.format}
-              onChange={(e) => handleFormatChange(e.target.value as ConversionSettings['format'])}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-            >
-              {formatOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label} - {option.description}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              Selecciona el formato de salida para las imágenes convertidas
-            </p>
-          </div>
-
-          {/* Control de calidad */}
-          {shouldShowQuality && (
+          {/* Formato y Calidad */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Formato */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Calidad ({settings.quality}%)
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Formato
               </label>
-              <input
-                type="range"
-                min="10"
-                max="100"
-                step="5"
-                value={settings.quality}
-                onChange={(e) => handleQualityChange(Number(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-              />
-              <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>Menor tamaño</span>
-                <span>Mayor calidad</span>
-              </div>
+              <select
+                value={settings.format}
+                onChange={(e) => handleFormatChange(e.target.value as ConversionSettings['format'])}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              >
+                {formatOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
-          )}
+
+            {/* Calidad (solo para JPEG y WebP) */}
+            {shouldShowQuality && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Calidad
+                </label>
+                <select
+                  value={settings.quality}
+                  onChange={(e) => handleQualityChange(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                >
+                  <option value="10">10% - Muy baja</option>
+                  <option value="25">25% - Baja</option>
+                  <option value="50">50% - Media</option>
+                  <option value="75">75% - Buena</option>
+                  <option value="90">90% - Alta</option>
+                  <option value="95">95% - Muy alta</option>
+                  <option value="100">100% - Máxima</option>
+                </select>
+              </div>
+            )}
+          </div>
 
           {/* Nomenclatura de imágenes */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">
               Nomenclatura de imágenes
             </label>
-            <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
               {/* Prefijo del nombre */}
               <div>
                 <label className="flex items-center text-sm text-gray-600 mb-2">
@@ -177,22 +215,138 @@ export const Sidebar: React.FC<SidebarProps> = ({
               Información adicional que ayudará a ChatGPT a generar descripciones más precisas
             </p>
           </div>
+
+          {/* Redimensionamiento de imágenes */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-sm font-medium text-gray-700">
+                Redimensionamiento
+              </label>
+              <button
+                onClick={() => handleResizeEnabledChange(!resizeSettings.enabled)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  resizeSettings.enabled ? 'bg-blue-600' : 'bg-gray-200'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    resizeSettings.enabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+            
+            {resizeSettings.enabled && (
+              <div className="space-y-4 p-4 bg-gray-50 rounded-lg border">
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Ancho */}
+                  <div>
+                    <label className="flex items-center text-sm text-gray-600 mb-2">
+                      <Maximize2 className="w-4 h-4 mr-2" />
+                      Ancho (px)
+                    </label>
+                    <input
+                      type="number"
+                      value={resizeSettings.width}
+                      onChange={(e) => handleResizeWidthChange(parseInt(e.target.value) || 0)}
+                      min="1"
+                      max="10000"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    />
+                  </div>
+
+                  {/* Alto */}
+                  <div>
+                    <label className="flex items-center text-sm text-gray-600 mb-2">
+                      <Minimize2 className="w-4 h-4 mr-2" />
+                      Alto (px)
+                    </label>
+                    <input
+                      type="number"
+                      value={resizeSettings.height}
+                      onChange={(e) => handleResizeHeightChange(parseInt(e.target.value) || 0)}
+                      min="1"
+                      max="10000"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Mantener proporción */}
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="maintainAspectRatio"
+                    checked={resizeSettings.maintainAspectRatio}
+                    onChange={(e) => handleMaintainAspectRatioChange(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="maintainAspectRatio" className="ml-2 text-sm text-gray-700">
+                    Mantener proporción de aspecto
+                  </label>
+                </div>
+                
+                <p className="text-xs text-gray-500">
+                  {resizeSettings.maintainAspectRatio 
+                    ? 'Las imágenes se redimensionarán manteniendo su proporción original'
+                    : 'Las imágenes se redimensionarán a las dimensiones exactas especificadas'
+                  }
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Acciones */}
-      <div className="flex-1 flex flex-col justify-end px-6 space-y-2">
-        {/* ChatGPT Actions */}
+      <div className="flex-1 flex flex-col justify-end px-6 space-y-3">
+        {/* Acciones principales - Grid de 2 columnas */}
+        <div className="grid grid-cols-2 gap-2">
+          {/* Solo Convertir */}
+          <button
+            onClick={onConvertOnly}
+            disabled={imageCount === 0 || isConverting || isGeneratingDescriptions}
+            className="bg-gray-600 hover:bg-gray-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2 rounded-lg font-medium flex items-center justify-center space-x-1 transition-colors text-sm"
+          >
+            <Package className="w-4 h-4" />
+            <span className="hidden sm:inline">
+              {isConverting ? 'Convirtiendo...' : 'Solo Convertir'}
+            </span>
+            <span className="sm:hidden">
+              {isConverting ? '...' : 'Convertir'}
+            </span>
+          </button>
+
+          {/* Convertir + Generar */}
+          <button
+            onClick={onConvert}
+            disabled={imageCount === 0 || isConverting || isGeneratingDescriptions}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2 rounded-lg font-medium flex items-center justify-center space-x-1 transition-colors text-sm"
+          >
+            <Brain className="w-4 h-4" />
+            <span className="hidden sm:inline">
+              {isConverting ? 'Convirtiendo...' : 'Convertir + IA'}
+            </span>
+            <span className="sm:hidden">
+              {isConverting ? '...' : 'IA'}
+            </span>
+          </button>
+        </div>
+
+        {/* Acciones de ChatGPT */}
         {chatGPTEnabled && (
-          <>
+          <div className="grid grid-cols-2 gap-2">
             <button
               onClick={onGenerateDescriptions}
               disabled={imageCount === 0 || isGeneratingDescriptions || isConverting}
-              className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg font-medium flex items-center justify-center space-x-2 transition-colors"
+              className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2 rounded-lg font-medium flex items-center justify-center space-x-1 transition-colors text-sm"
             >
-              <Brain className="w-5 h-5" />
-              <span>
-                {isGeneratingDescriptions ? 'Generando...' : 'Generar Descripciones'}
+              <Brain className="w-4 h-4" />
+              <span className="hidden sm:inline">
+                {isGeneratingDescriptions ? 'Generando...' : 'Solo IA'}
+              </span>
+              <span className="sm:hidden">
+                {isGeneratingDescriptions ? '...' : 'IA'}
               </span>
             </button>
             
@@ -200,62 +354,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 onClick={onExportDescriptions}
                 disabled={descriptionsCount === 0}
-                className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg font-medium flex items-center justify-center space-x-2 transition-colors"
+                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2 rounded-lg font-medium flex items-center justify-center space-x-1 transition-colors text-sm"
               >
-                <FileText className="w-5 h-5" />
-                <span>Exportar Descripciones ({descriptionsCount})</span>
+                <FileText className="w-4 h-4" />
+                <span className="hidden sm:inline">Exportar ({descriptionsCount})</span>
+                <span className="sm:hidden">Exp ({descriptionsCount})</span>
               </button>
             )}
-          </>
+          </div>
         )}
 
-        {/* Conversion Actions */}
-        <div className="space-y-2">
+        {/* Acciones de descarga y limpieza */}
+        <div className="grid grid-cols-2 gap-2">
+          {convertedCount > 0 && (
+            <button
+              onClick={onDownloadConverted}
+              disabled={convertedCount === 0}
+              className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-2 rounded-lg font-medium flex items-center justify-center space-x-1 transition-colors text-sm"
+            >
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">
+                {convertedCount > 1 ? `ZIP (${convertedCount})` : 'Descargar'}
+              </span>
+              <span className="sm:hidden">
+                {convertedCount > 1 ? `ZIP` : '↓'}
+              </span>
+            </button>
+          )}
+          
           <button
-            onClick={onConvertOnly}
+            onClick={onClearAll}
             disabled={imageCount === 0 || isConverting || isGeneratingDescriptions}
-            className="w-full bg-gray-600 hover:bg-gray-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg font-medium flex items-center justify-center space-x-2 transition-colors"
+            className="bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:cursor-not-allowed text-gray-700 px-3 py-2 rounded-lg font-medium flex items-center justify-center space-x-1 transition-colors text-sm"
           >
-            <Package className="w-5 h-5" />
-            <span>
-              {isConverting ? 'Convirtiendo...' : 'Solo Convertir Imágenes'}
-            </span>
-          </button>
-
-          <button
-            onClick={onConvert}
-            disabled={imageCount === 0 || isConverting || isGeneratingDescriptions}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg font-medium flex items-center justify-center space-x-2 transition-colors"
-          >
-            <Brain className="w-5 h-5" />
-            <span>
-              {isConverting ? 'Convirtiendo...' : 'Convertir + Generar Descripciones'}
-            </span>
+            <Trash2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Limpiar</span>
+            <span className="sm:hidden">🗑️</span>
           </button>
         </div>
-
-        {/* Download Actions */}
-        {convertedCount > 0 && (
-          <button
-            onClick={onDownloadConverted}
-            disabled={convertedCount === 0}
-            className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg font-medium flex items-center justify-center space-x-2 transition-colors"
-          >
-            <Download className="w-5 h-5" />
-            <span>
-              {convertedCount > 1 ? `Descargar ZIP (${convertedCount})` : 'Descargar Imagen'}
-            </span>
-          </button>
-        )}
-        
-        <button
-          onClick={onClearAll}
-          disabled={imageCount === 0 || isConverting || isGeneratingDescriptions}
-          className="w-full bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:cursor-not-allowed text-gray-700 px-4 py-3 rounded-lg font-medium flex items-center justify-center space-x-2 transition-colors"
-        >
-          <Trash2 className="w-4 h-4" />
-          <span>Limpiar todo</span>
-        </button>
       </div>
     </aside>
   );

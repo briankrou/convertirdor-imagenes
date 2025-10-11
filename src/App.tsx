@@ -23,7 +23,13 @@ function App() {
     quality: 90,
     imageNamePrefix: 'imagen',
     sdkSuffix: 'A5455',
-    productDescription: ''
+    productDescription: '',
+    resize: {
+      enabled: false,
+      width: 1920,
+      height: 1080,
+      maintainAspectRatio: true
+    }
   });
   const [chatGPTSettings, setChatGPTSettings] = useState<UserChatGPTSettings>({
     apiKey: '',
@@ -288,7 +294,13 @@ function App() {
         quality: 90,
         imageNamePrefix: 'imagen',
         sdkSuffix: 'A5455',
-        productDescription: ''
+        productDescription: '',
+        resize: {
+          enabled: false,
+          width: 1920,
+          height: 1080,
+          maintainAspectRatio: true
+        }
       };
       
       setSettings(defaultConversionSettings);
@@ -387,7 +399,13 @@ function App() {
           quality: 90,
           imageNamePrefix: 'imagen',
           sdkSuffix: 'A5455',
-          productDescription: ''
+          productDescription: '',
+          resize: {
+            enabled: false,
+            width: 1920,
+            height: 1080,
+            maintainAspectRatio: true
+          }
         };
         
         // Resetear configuración de ChatGPT
@@ -581,8 +599,34 @@ function App() {
       const img = new Image();
 
       img.onload = () => {
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
+        let targetWidth = img.naturalWidth;
+        let targetHeight = img.naturalHeight;
+        
+        // Aplicar redimensionamiento si está habilitado
+        if (settings.resize && settings.resize.enabled) {
+          if (settings.resize.maintainAspectRatio) {
+            // Mantener proporción de aspecto
+            const aspectRatio = img.naturalWidth / img.naturalHeight;
+            const targetAspectRatio = settings.resize.width / settings.resize.height;
+            
+            if (aspectRatio > targetAspectRatio) {
+              // La imagen es más ancha, ajustar por ancho
+              targetWidth = settings.resize.width;
+              targetHeight = settings.resize.width / aspectRatio;
+            } else {
+              // La imagen es más alta, ajustar por alto
+              targetHeight = settings.resize.height;
+              targetWidth = settings.resize.height * aspectRatio;
+            }
+          } else {
+            // No mantener proporción, usar dimensiones exactas
+            targetWidth = settings.resize.width;
+            targetHeight = settings.resize.height;
+          }
+        }
+        
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
         
         // Clear canvas with white background for formats that don't support transparency
         if (settings.format === 'jpeg' || settings.format === 'bmp') {
@@ -590,7 +634,8 @@ function App() {
           ctx!.fillRect(0, 0, canvas.width, canvas.height);
         }
         
-        ctx!.drawImage(img, 0, 0);
+        // Dibujar la imagen redimensionada
+        ctx!.drawImage(img, 0, 0, targetWidth, targetHeight);
         
         // Convert to the desired format
         const mimeType = getMimeType(settings.format);
