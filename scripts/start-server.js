@@ -9,12 +9,7 @@ require('dotenv').config();
 const { spawn } = require('child_process');
 const path = require('path');
 
-// Cargar configuración
-const config = require('./config.js');
-const envConfig = config.loadEnvFile();
-
-// Aplicar configuración
-config.applyConfig(envConfig);
+// Configuración simplificada sin archivo config.js
 
 // Configuración del servidor
 const PORT = process.env.PORT || 3000;
