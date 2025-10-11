@@ -1,8 +1,10 @@
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
 
 // Servir archivos estáticos desde la carpeta dist
 app.use(express.static(path.join(__dirname, 'dist')));
@@ -24,10 +26,11 @@ app.use((req, res, next) => {
 });
 
 // Iniciar servidor
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, HOST, () => {
   console.log(`🚀 Servidor iniciado en puerto ${PORT}`);
   console.log(`📱 Acceso local: http://localhost:${PORT}`);
-  console.log(`🌐 Acceso externo: http://0.0.0.0:${PORT}`);
+  console.log(`🌐 Acceso externo: http://${HOST}:${PORT}`);
+  console.log(`⚙️  Configuración desde archivo .env`);
 });
 
 // Manejo de errores

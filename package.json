@@ -4,13 +4,20 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "vite preview --host 0.0.0.0 --port 3000",
-    "dev": "vite",
+    "start": "node scripts/start-server.js",
+    "dev": "node scripts/dev-server.js",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "node scripts/start-server.js",
+    "start:env": "node -r dotenv/config simple-server.js",
+    "start:vite": "vite preview --host 0.0.0.0 --port 3000",
+    "dev:vite": "vite --host localhost --port 5173",
+    "config": "node scripts/config.js",
+    "config:example": "node -e \"require('./scripts/config.js').generateEnvExample()\"",
+    "env:check": "node -e \"const config = require('./scripts/config.js').loadEnvFile(); console.log('Variables cargadas:', Object.keys(config).length);\""
   },
   "dependencies": {
+    "dotenv": "^17.2.3",
     "jszip": "^3.10.1",
     "lowdb": "^7.0.1",
     "lucide-react": "^0.344.0",
