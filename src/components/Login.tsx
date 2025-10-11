@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, LogIn, User, Lock, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, LogIn, User, Lock, AlertCircle, Mail, ArrowLeft } from 'lucide-react';
 import { authService } from '../services/authService';
+import { databaseService } from '../services/databaseService';
+import { emailService } from '../services/emailService';
+import { Popup } from './Popup';
+import { usePopup } from '../hooks/usePopup';
 
 interface LoginProps {
   onLoginSuccess: () => void;
@@ -13,6 +17,10 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showDefaultCredentials, setShowDefaultCredentials] = useState(false);
+  const [showPasswordRecovery, setShowPasswordRecovery] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [isRecovering, setIsRecovering] = useState(false);
+  const { popupState, hidePopup, showAlert, showConfirm } = usePopup();
 
   useEffect(() => {
     // Verificar si es la primera vez o si la contraseña del root sigue siendo la predeterminada
@@ -65,6 +73,164 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       setIsLoading(false);
     }
   };
+
+  const handlePasswordRecovery = async () => {
+    if (!recoveryEmail.trim()) {
+      showAlert('Error', 'Por favor ingresa tu dirección de email');
+      return;
+    }
+
+    if (!emailService.isValidEmail(recoveryEmail)) {
+      showAlert('Error', 'Por favor ingresa una dirección de email válida');
+      return;
+    }
+
+    setIsRecovering(true);
+
+    try {
+      // Buscar usuario por email
+      const users = authService.getAllUsers();
+      const user = users.find(u => u.email === recoveryEmail || u.username === recoveryEmail);
+      
+      if (!user) {
+        showAlert('Error', 'No se encontró un usuario con esa dirección de email. Asegúrate de haber configurado tu email en el perfil.');
+        return;
+      }
+
+      // Generar nueva contraseña temporal
+      const newPassword = emailService.generateTemporaryPassword(12);
+      
+      // Actualizar contraseña del usuario
+      const updateResult = await authService.updateUserPassword(user.id, newPassword);
+      
+      if (!updateResult.success) {
+        showAlert('Error', 'No se pudo actualizar la contraseña');
+        return;
+      }
+
+      // Configurar SMTP con la configuración del root
+      const rootSMTPSettings = await databaseService.getUserSMTPSettings('root');
+      emailService.setSMTPSettings(rootSMTPSettings);
+
+      // Enviar email de recuperación
+      const emailResult = await emailService.sendPasswordRecoveryEmail({
+        to: recoveryEmail,
+        username: user.username,
+        newPassword: newPassword
+      });
+
+      if (emailResult.success) {
+        showAlert(
+          'Contraseña enviada',
+          'Se ha enviado una nueva contraseña temporal a tu dirección de email. Por favor revisa tu bandeja de entrada y spam.'
+        );
+        setShowPasswordRecovery(false);
+        setRecoveryEmail('');
+      } else {
+        showAlert('Error', `No se pudo enviar el email: ${emailResult.error}`);
+      }
+    } catch (error) {
+      console.error('Password recovery error:', error);
+      showAlert('Error', 'Error interno del sistema');
+    } finally {
+      setIsRecovering(false);
+    }
+  };
+
+  if (showPasswordRecovery) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="max-w-md w-full">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Mail className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              Recuperar Contraseña
+            </h1>
+            <p className="text-gray-600">
+              Ingresa tu email para recibir una nueva contraseña
+            </p>
+            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Nota:</strong> Asegúrate de haber configurado tu email en la configuración de perfil. 
+                Si no lo has hecho, contacta al administrador.
+              </p>
+            </div>
+          </div>
+
+          {/* Recovery Form */}
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <form onSubmit={(e) => { e.preventDefault(); handlePasswordRecovery(); }} className="space-y-6">
+              {/* Email Field */}
+              <div>
+                <label htmlFor="recoveryEmail" className="block text-sm font-medium text-gray-700 mb-2">
+                  Dirección de Email
+                </label>
+                <div className="relative">
+                  <input
+                    id="recoveryEmail"
+                    type="email"
+                    value={recoveryEmail}
+                    onChange={(e) => setRecoveryEmail(e.target.value)}
+                    className="w-full px-4 py-3 pl-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="tu@email.com"
+                    required
+                  />
+                  <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="space-y-3">
+                <button
+                  type="submit"
+                  disabled={isRecovering}
+                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                >
+                  {isRecovering ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Enviando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-5 h-5" />
+                      <span>Enviar Nueva Contraseña</span>
+                    </>
+                  )}
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordRecovery(false)}
+                  className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                  <span>Volver al Login</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        {/* Popup */}
+        <Popup
+          isOpen={popupState.isOpen}
+          onClose={hidePopup}
+          title={popupState.title}
+          message={popupState.message}
+          type={popupState.type}
+          onConfirm={popupState.onConfirm}
+          onCancel={popupState.onCancel}
+          confirmText={popupState.confirmText}
+          cancelText={popupState.cancelText}
+          showButtons={popupState.showButtons}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -165,6 +331,17 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 </>
               )}
             </button>
+
+            {/* Forgot Password Link */}
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setShowPasswordRecovery(true)}
+                className="text-sm text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
           </form>
 
           {/* Default Credentials Info - Solo se muestra la primera vez o si la contraseña no ha sido cambiada */}
@@ -191,6 +368,20 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
           </p>
         </div>
       </div>
+
+      {/* Popup */}
+      <Popup
+        isOpen={popupState.isOpen}
+        onClose={hidePopup}
+        title={popupState.title}
+        message={popupState.message}
+        type={popupState.type}
+        onConfirm={popupState.onConfirm}
+        onCancel={popupState.onCancel}
+        confirmText={popupState.confirmText}
+        cancelText={popupState.cancelText}
+        showButtons={popupState.showButtons}
+      />
     </div>
   );
 };

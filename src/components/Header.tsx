@@ -1,9 +1,10 @@
 import React from 'react';
-import { Image, Settings, Brain, FileText, Trash2, BarChart3, Users, LogOut, User } from 'lucide-react';
+import { Image, Settings, Brain, FileText, Trash2, BarChart3, Users, LogOut, User, Mail } from 'lucide-react';
 
 interface HeaderProps {
   onChatGPTConfig?: () => void;
   onPromptConfig?: () => void;
+  onSMTPConfig?: () => void;
   onClearConfig?: () => void;
   onUsageHistory?: () => void;
   onUserManagement?: () => void;
@@ -15,6 +16,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ 
   onChatGPTConfig, 
   onPromptConfig, 
+  onSMTPConfig,
   onClearConfig, 
   onUsageHistory, 
   onUserManagement, 
@@ -60,6 +62,15 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Brain className="w-5 h-5" />
         </button>
+        {currentUser?.isRoot && (
+          <button 
+            onClick={onSMTPConfig}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Configurar SMTP"
+          >
+            <Mail className="w-5 h-5" />
+          </button>
+        )}
         <button 
           onClick={onUsageHistory}
           className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"

@@ -35,6 +35,17 @@ export interface PromptSettings {
   useCustomPrompts: boolean;
 }
 
+export interface SMTPSettings {
+  host: string;
+  port: number;
+  secure: boolean;
+  username: string;
+  password: string;
+  fromEmail: string;
+  fromName: string;
+  enabled: boolean;
+}
+
 export interface ImageDescription {
   id: number;
   imageName: string;
@@ -87,6 +98,7 @@ export interface User {
   lastLogin?: string;
   profileName?: string;
   profileImage?: string;
+  email?: string;
 }
 
 export interface AuthState {
@@ -123,14 +135,27 @@ export interface UserConversionSettings {
   };
 }
 
+export interface UserSMTPSettings {
+  host: string;
+  port: number;
+  secure: boolean;
+  username: string;
+  password: string;
+  fromEmail: string;
+  fromName: string;
+  enabled: boolean;
+}
+
 export interface UserSettings {
   username: string;
   chatGPTSettings: UserChatGPTSettings;
   promptSettings: UserPromptSettings;
   conversionSettings: UserConversionSettings;
+  smtpSettings: UserSMTPSettings;
 }
 
 // Alias para compatibilidad con el código existente
 export type ConversionSettings = UserConversionSettings;
 export type ChatGPTSettings = UserChatGPTSettings;
 export type PromptSettings = UserPromptSettings;
+export type SMTPSettings = UserSMTPSettings;

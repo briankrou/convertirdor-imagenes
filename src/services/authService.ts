@@ -200,8 +200,8 @@ class AuthService {
     };
   }
 
-  // Update user profile (name and image)
-  public async updateUserProfile(userId: string, profileData: { profileName?: string; profileImage?: string }): Promise<User> {
+  // Update user profile (name, image, and email)
+  public async updateUserProfile(userId: string, profileData: { profileName?: string; profileImage?: string; email?: string }): Promise<User> {
     const userIndex = this.users.findIndex(u => u.id === userId);
     if (userIndex === -1) {
       throw new Error('Usuario no encontrado');
@@ -248,6 +248,25 @@ class AuthService {
       return { success: true };
     } catch (error) {
       console.error('Error changing password:', error);
+      return { success: false, error: 'Error interno del sistema' };
+    }
+  }
+
+  // Update user password (for password recovery)
+  public async updateUserPassword(userId: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const userIndex = this.users.findIndex(u => u.id === userId);
+      if (userIndex === -1) {
+        return { success: false, error: 'Usuario no encontrado' };
+      }
+
+      // Update password
+      this.users[userIndex].password = newPassword;
+      this.saveUsers();
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating password:', error);
       return { success: false, error: 'Error interno del sistema' };
     }
   }

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Users, UserPlus, Trash2, Key, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Users, UserPlus, Trash2, Key, Eye, EyeOff, AlertCircle, CheckCircle, RotateCcw } from 'lucide-react';
 import { User } from '../types';
 import { authService } from '../services/authService';
+import { databaseService } from '../services/databaseService';
+import { emailService } from '../services/emailService';
 import { Popup } from './Popup';
 import { usePopup } from '../hooks/usePopup';
 
@@ -13,7 +15,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [showChangePasswordForm, setShowChangePasswordForm] = useState(false);
   const [currentUser] = useState(authService.getCurrentUser());
   const { popupState, hidePopup, showConfirm, showAlert } = usePopup();
 
@@ -23,13 +24,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
   const [newUserRole, setNewUserRole] = useState<'user' | 'admin'>('user');
   const [showNewPassword, setShowNewPassword] = useState(false);
 
-  // Change password form
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPasswordChange, setNewPasswordChange] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPasswordChange, setShowNewPasswordChange] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Messages
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -104,36 +98,90 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
     );
   };
 
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!currentPassword || !newPasswordChange || !confirmPassword) {
-      setMessage({ type: 'error', text: 'Por favor completa todos los campos' });
-      return;
-    }
+  const handleResetPassword = async (userId: string, username: string) => {
+    showConfirm(
+      'Restablecer contraseña',
+      `¿Estás seguro de que quieres restablecer la contraseña del usuario "${username}"? Se generará una nueva contraseña temporal.`,
+      async () => {
+        try {
+          // Obtener información del usuario
+          const users = authService.getAllUsers();
+          const user = users.find(u => u.id === userId);
+          
+          if (!user) {
+            setMessage({ type: 'error', text: 'Usuario no encontrado' });
+            return;
+          }
 
-    if (newPasswordChange !== confirmPassword) {
-      setMessage({ type: 'error', text: 'Las contraseñas nuevas no coinciden' });
-      return;
-    }
+          // Generar nueva contraseña temporal
+          const newPassword = generateTemporaryPassword(12);
+          
+          // Actualizar contraseña del usuario
+          const updateResult = await authService.updateUserPassword(userId, newPassword);
+          
+          if (updateResult.success) {
+            let messageText = `Contraseña restablecida exitosamente. Nueva contraseña: ${newPassword}`;
+            
+            // Intentar enviar email si el usuario tiene email configurado
+            if (user.email) {
+              try {
+                // Configurar SMTP con la configuración del root
+                const rootSMTPSettings = await databaseService.getUserSMTPSettings('root');
+                emailService.setSMTPSettings(rootSMTPSettings);
 
-    try {
-      const result = await authService.changePassword(currentPassword, newPasswordChange);
-      
-      if (result.success) {
-        setMessage({ type: 'success', text: 'Contraseña cambiada exitosamente' });
-        setCurrentPassword('');
-        setNewPasswordChange('');
-        setConfirmPassword('');
-        setShowChangePasswordForm(false);
-      } else {
-        setMessage({ type: 'error', text: result.error || 'Error al cambiar contraseña' });
+                // Enviar email de recuperación
+                const emailResult = await emailService.sendPasswordRecoveryEmail({
+                  to: user.email,
+                  username: user.username,
+                  newPassword: newPassword
+                });
+
+                if (emailResult.success) {
+                  messageText += ` Se ha enviado un email con la nueva contraseña a ${user.email}.`;
+                } else {
+                  messageText += ` No se pudo enviar el email: ${emailResult.error}`;
+                }
+              } catch (emailError) {
+                console.error('Error sending email:', emailError);
+                messageText += ` No se pudo enviar el email.`;
+              }
+            } else {
+              messageText += ` Nota: El usuario no tiene email configurado, por lo que no se envió notificación por correo.`;
+            }
+            
+            setMessage({ 
+              type: 'success', 
+              text: messageText
+            });
+            loadUsers();
+          } else {
+            setMessage({ type: 'error', text: updateResult.error || 'Error al restablecer contraseña' });
+          }
+        } catch (error) {
+          console.error('Error resetting password:', error);
+          setMessage({ type: 'error', text: 'Error interno del sistema' });
+        }
+      },
+      {
+        confirmText: 'Restablecer',
+        cancelText: 'Cancelar',
+        type: 'warning'
       }
-    } catch (error) {
-      console.error('Error changing password:', error);
-      setMessage({ type: 'error', text: 'Error interno del sistema' });
-    }
+    );
   };
+
+  // Función para generar contraseña temporal
+  const generateTemporaryPassword = (length: number = 12): string => {
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    let password = '';
+    
+    for (let i = 0; i < length; i++) {
+      password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    
+    return password;
+  };
+
 
   const clearMessage = () => {
     setMessage(null);
@@ -181,13 +229,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
                 <span>Nuevo Usuario</span>
               </button>
             )}
-            <button
-              onClick={() => setShowChangePasswordForm(!showChangePasswordForm)}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center space-x-2 transition-colors"
-            >
-              <Key className="w-4 h-4" />
-              <span>Cambiar Contraseña</span>
-            </button>
           </div>
         </div>
       </div>
@@ -299,107 +340,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
           </div>
         )}
 
-        {/* Change Password Form */}
-        {showChangePasswordForm && (
-          <div className="mb-6 bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Cambiar Contraseña</h3>
-            <form onSubmit={handleChangePassword} className="space-y-4">
-              <div>
-                <label htmlFor="current-password" className="block text-sm font-medium text-gray-700 mb-1">
-                  Contraseña Actual
-                </label>
-                <div className="relative">
-                  <input
-                    id="current-password"
-                    type={showCurrentPassword ? 'text' : 'password'}
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                    placeholder="Ingresa tu contraseña actual"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  >
-                    {showCurrentPassword ? (
-                      <EyeOff className="h-4 w-4 text-gray-400" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-gray-400" />
-                    )}
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label htmlFor="new-password-change" className="block text-sm font-medium text-gray-700 mb-1">
-                  Nueva Contraseña
-                </label>
-                <div className="relative">
-                  <input
-                    id="new-password-change"
-                    type={showNewPasswordChange ? 'text' : 'password'}
-                    value={newPasswordChange}
-                    onChange={(e) => setNewPasswordChange(e.target.value)}
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                    placeholder="Ingresa tu nueva contraseña"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPasswordChange(!showNewPasswordChange)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  >
-                    {showNewPasswordChange ? (
-                      <EyeOff className="h-4 w-4 text-gray-400" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-gray-400" />
-                    )}
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 mb-1">
-                  Confirmar Nueva Contraseña
-                </label>
-                <div className="relative">
-                  <input
-                    id="confirm-password"
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                    placeholder="Confirma tu nueva contraseña"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="h-4 w-4 text-gray-400" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-gray-400" />
-                    )}
-                  </button>
-                </div>
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium"
-                >
-                  Cambiar Contraseña
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowChangePasswordForm(false)}
-                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-medium"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
 
         {/* Users List */}
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -421,6 +361,9 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Creado
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Email
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Último Login
@@ -469,18 +412,38 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
                       {new Date(user.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {user.email ? (
+                        <span className="text-blue-600">{user.email}</span>
+                      ) : (
+                        <span className="text-gray-400 italic">No configurado</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Nunca'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      {currentUser?.isRoot && !user.isRoot && user.id !== currentUser.id && (
-                        <button
-                          onClick={() => handleDeleteUser(user.id, user.username)}
-                          className="text-red-600 hover:text-red-900 flex items-center space-x-1"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          <span>Eliminar</span>
-                        </button>
-                      )}
+                      <div className="flex items-center space-x-3">
+                        {currentUser?.isRoot && user.id !== currentUser.id && (
+                          <button
+                            onClick={() => handleResetPassword(user.id, user.username)}
+                            className="text-orange-600 hover:text-orange-900 flex items-center space-x-1"
+                            title="Restablecer contraseña"
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                            <span>Restablecer</span>
+                          </button>
+                        )}
+                        {currentUser?.isRoot && !user.isRoot && user.id !== currentUser.id && (
+                          <button
+                            onClick={() => handleDeleteUser(user.id, user.username)}
+                            className="text-red-600 hover:text-red-900 flex items-center space-x-1"
+                            title="Eliminar usuario"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span>Eliminar</span>
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

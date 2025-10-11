@@ -1,4 +1,4 @@
-import { UserSettings, UserChatGPTSettings, UserPromptSettings, UserConversionSettings } from '../types';
+import { UserSettings, UserChatGPTSettings, UserPromptSettings, UserConversionSettings, UserSMTPSettings } from '../types';
 import { DatabaseSync } from '../utils/dbSync';
 
 interface DatabaseSchema {
@@ -165,6 +165,78 @@ class DatabaseService {
   async clearAllUserData(): Promise<void> {
     await this.ensureInitialized();
     this.data!.userSettings = {};
+    await this.saveData();
+  }
+
+  // Métodos para configuración SMTP
+  async getUserSMTPSettings(username: string): Promise<UserSMTPSettings> {
+    await this.ensureInitialized();
+    
+    if (!this.data) {
+      throw new Error('Database not initialized');
+    }
+
+    const userSettings = this.data.userSettings[username];
+    if (!userSettings || !userSettings.smtpSettings) {
+      // Retornar configuración por defecto
+      return {
+        host: '',
+        port: 587,
+        secure: false,
+        username: '',
+        password: '',
+        fromEmail: '',
+        fromName: 'Sistema de Recuperación',
+        enabled: false
+      };
+    }
+
+    return userSettings.smtpSettings;
+  }
+
+  async saveUserSMTPSettings(username: string, settings: UserSMTPSettings): Promise<void> {
+    await this.ensureInitialized();
+    
+    if (!this.data) {
+      throw new Error('Database not initialized');
+    }
+
+    // Asegurar que el usuario existe
+    if (!this.data.userSettings[username]) {
+      this.data.userSettings[username] = {
+        username,
+        chatGPTSettings: {
+          apiKey: '',
+          model: 'gpt-4o',
+          enabled: false
+        },
+        promptSettings: {
+          titlePrompt: '',
+          descriptionPrompt: '',
+          captionPrompt: '',
+          altTextPrompt: '',
+          useCustomPrompts: false
+        },
+        conversionSettings: {
+          format: 'png',
+          quality: 90,
+          imageNamePrefix: 'imagen',
+          sdkSuffix: 'A5455',
+          productDescription: '',
+          resize: {
+            enabled: false,
+            width: 1920,
+            height: 1080,
+            maintainAspectRatio: true
+          }
+        },
+        smtpSettings: settings
+      };
+    } else {
+      this.data.userSettings[username].smtpSettings = settings;
+    }
+
+    this.data.lastUpdated = new Date().toISOString();
     await this.saveData();
   }
 
