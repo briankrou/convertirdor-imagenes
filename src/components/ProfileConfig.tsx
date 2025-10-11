@@ -16,7 +16,6 @@ export const ProfileConfig: React.FC<ProfileConfigProps> = ({
   onProfileUpdated
 }) => {
   const [profileName, setProfileName] = useState(currentUser.profileName || currentUser.username);
-  const [email, setEmail] = useState(currentUser.email || '');
   const [currency, setCurrency] = useState(currentUser.currency || 'USD');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -88,17 +87,11 @@ export const ProfileConfig: React.FC<ProfileConfigProps> = ({
         return;
       }
 
-      // Validar email si se proporciona
-      if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-        setError('Por favor ingresa un email válido');
-        return;
-      }
 
       // Actualizar perfil
       const updatedUser = await authService.updateUserProfile(currentUser.id, {
         profileName: profileName.trim(),
         profileImage: profileImage,
-        email: email.trim() || undefined,
         currency: currency
       });
 
@@ -289,20 +282,6 @@ export const ProfileConfig: React.FC<ProfileConfigProps> = ({
                 <p className="text-xs text-gray-500 mt-1">Este nombre se mostrará en la aplicación</p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Mail className="w-4 h-4 inline mr-1" />
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="tu@email.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <p className="text-xs text-gray-500 mt-1">Necesario para recuperar tu contraseña</p>
-              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -332,51 +311,6 @@ export const ProfileConfig: React.FC<ProfileConfigProps> = ({
             </div>
           </div>
 
-          {/* Password Recovery Settings Section - Solo para administradores */}
-          {currentUser.isRoot && (
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <Mail className="w-5 h-5 mr-2" />
-                Configuración de Recuperación de Contraseña
-              </h2>
-              
-              <div className="space-y-4">
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-start space-x-3">
-                    <Mail className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <h3 className="text-sm font-medium text-blue-900 mb-1">
-                        Email de Recuperación
-                      </h3>
-                      <p className="text-sm text-blue-700 mb-2">
-                        El email configurado arriba se utilizará para enviarte una nueva contraseña si olvidas la tuya.
-                      </p>
-                      <p className="text-xs text-blue-600">
-                        Asegúrate de que el email sea válido y esté accesible para recibir correos de recuperación.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                  <div className="flex items-start space-x-3">
-                    <Globe className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <h3 className="text-sm font-medium text-amber-900 mb-1">
-                        Configuración SMTP
-                      </h3>
-                      <p className="text-sm text-amber-700 mb-2">
-                        Para que funcione la recuperación de contraseña, el administrador debe configurar un servidor SMTP.
-                      </p>
-                      <p className="text-xs text-amber-600">
-                        Contacta al administrador si tienes problemas para recuperar tu contraseña.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Change Password Section */}
           <div className="bg-white rounded-lg border border-gray-200 p-6">

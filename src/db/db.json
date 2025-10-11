@@ -27,16 +27,6 @@
         "altTextPrompt": "Genera un texto alternativo descriptivo para accesibilidad que describa claramente el contenido de la imagen (máximo 125 caracteres).",
         "useCustomPrompts": false
       },
-      "smtpSettings": {
-        "host": "",
-        "port": 587,
-        "secure": false,
-        "username": "",
-        "password": "",
-        "fromEmail": "",
-        "fromName": "Sistema de Recuperación",
-        "enabled": false
-      },
       "preferences": {
         "currency": "USD",
         "language": "es",

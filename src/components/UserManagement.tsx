@@ -3,7 +3,6 @@ import { ArrowLeft, Users, UserPlus, Trash2, Key, Eye, EyeOff, AlertCircle, Chec
 import { User } from '../types';
 import { authService } from '../services/authService';
 import { databaseService } from '../services/databaseService';
-import { emailService } from '../services/emailService';
 import { Popup } from './Popup';
 import { usePopup } from '../hooks/usePopup';
 
@@ -122,32 +121,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
           if (updateResult.success) {
             let messageText = `Contraseña restablecida exitosamente. Nueva contraseña: ${newPassword}`;
             
-            // Intentar enviar email si el usuario tiene email configurado
-            if (user.email) {
-              try {
-                // Configurar SMTP con la configuración del root
-                const rootSMTPSettings = await databaseService.getUserSMTPSettings('root');
-                emailService.setSMTPSettings(rootSMTPSettings);
-
-                // Enviar email de recuperación
-                const emailResult = await emailService.sendPasswordRecoveryEmail({
-                  to: user.email,
-                  username: user.username,
-                  newPassword: newPassword
-                });
-
-                if (emailResult.success) {
-                  messageText += ` Se ha enviado un email con la nueva contraseña a ${user.email}.`;
-                } else {
-                  messageText += ` No se pudo enviar el email: ${emailResult.error}`;
-                }
-              } catch (emailError) {
-                console.error('Error sending email:', emailError);
-                messageText += ` No se pudo enviar el email.`;
-              }
-            } else {
-              messageText += ` Nota: El usuario no tiene email configurado, por lo que no se envió notificación por correo.`;
-            }
             
             setMessage({ 
               type: 'success', 
@@ -363,9 +336,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
                     Creado
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Último Login
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -410,13 +380,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onBack }) => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {new Date(user.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {user.email ? (
-                        <span className="text-blue-600">{user.email}</span>
-                      ) : (
-                        <span className="text-gray-400 italic">No configurado</span>
-                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Nunca'}

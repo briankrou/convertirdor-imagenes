@@ -17,10 +17,6 @@
     "config": "node scripts/config.js",
     "config:example": "node -e \"require('./scripts/config.js').generateEnvExample()\"",
     "env:check": "node -e \"const config = require('./scripts/config.js').loadEnvFile(); console.log('Variables cargadas:', Object.keys(config).length);\"",
-    "gmail:config": "node scripts/gmail-config.js",
-    "test:callback": "node scripts/test-callback-detection.js",
-    "check:tokens": "node scripts/check-tokens.js",
-    "gmail:auth": "node -e \"require('./scripts/gmail-config.js').generateAuthUrl()\"",
     "docker:build": "docker build -t convertidor-imagenes .",
     "docker:run": "docker run -p 3000:3000 convertidor-imagenes"
   },
@@ -42,6 +38,7 @@
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.11",
     "globals": "^15.9.0",
+    "http-proxy-middleware": "^3.0.5",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.5.3",

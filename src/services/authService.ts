@@ -200,8 +200,8 @@ class AuthService {
     };
   }
 
-  // Update user profile (name, image, email, and currency)
-  public async updateUserProfile(userId: string, profileData: { profileName?: string; profileImage?: string; email?: string; currency?: string }): Promise<User> {
+  // Update user profile (name, image, and currency)
+  public async updateUserProfile(userId: string, profileData: { profileName?: string; profileImage?: string; currency?: string }): Promise<User> {
     const userIndex = this.users.findIndex(u => u.id === userId);
     if (userIndex === -1) {
       throw new Error('Usuario no encontrado');

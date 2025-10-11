@@ -1,10 +1,9 @@
 import React from 'react';
-import { Image, Settings, Brain, FileText, Trash2, BarChart3, Users, LogOut, User, Mail, Globe } from 'lucide-react';
+import { Image, Settings, Brain, FileText, Trash2, BarChart3, Users, LogOut, User, Globe } from 'lucide-react';
 
 interface HeaderProps {
   onChatGPTConfig?: () => void;
   onPromptConfig?: () => void;
-  onGmailApiConfig?: () => void;
   onCurrencyAPIConfig?: () => void;
   onClearConfig?: () => void;
   onUsageHistory?: () => void;
@@ -17,7 +16,6 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ 
   onChatGPTConfig, 
   onPromptConfig, 
-  onGmailApiConfig,
   onCurrencyAPIConfig,
   onClearConfig, 
   onUsageHistory, 
@@ -64,15 +62,6 @@ export const Header: React.FC<HeaderProps> = ({
         >
           <Brain className="w-5 h-5" />
         </button>
-        {currentUser?.isRoot && (
-          <button 
-            onClick={onGmailApiConfig}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Configurar Gmail API"
-          >
-            <Mail className="w-5 h-5" />
-          </button>
-        )}
         {currentUser?.isRoot && (
           <button 
             onClick={onCurrencyAPIConfig}

@@ -6,8 +6,6 @@ import { DropZone } from './components/DropZone';
 import { NotificationContainer } from './components/NotificationContainer';
 import { ChatGPTConfig } from './components/ChatGPTConfig';
 import { PromptConfig } from './components/PromptConfig';
-import { GmailApiConfig } from './components/GmailApiConfig';
-import { GmailCallback } from './components/GmailCallback';
 import { CurrencyAPIConfig } from './components/CurrencyAPIConfig';
 import { UsageHistory } from './components/UsageHistory';
 import { Login } from './components/Login';
@@ -15,8 +13,7 @@ import { UserManagement } from './components/UserManagement';
 import { ProfileConfig } from './components/ProfileConfig';
 import { Popup } from './components/Popup';
 import { usePopup } from './hooks/usePopup';
-import { ImageData, ImageDescription, Notification, AuthState, UserConversionSettings, UserChatGPTSettings, UserPromptSettings, GmailApiSettings } from './types';
-import { isGmailCallbackPage } from './config/routes';
+import { ImageData, ImageDescription, Notification, AuthState, UserConversionSettings, UserChatGPTSettings, UserPromptSettings } from './types';
 // import { convertImages } from './utils/imageConverter'; // No se está usando
 import { ChatGPTService } from './services/chatgptService';
 import { databaseService } from './services/databaseService';
@@ -50,19 +47,11 @@ function App() {
     altTextPrompt: "Genera un texto alternativo descriptivo para accesibilidad que describa claramente el contenido de la imagen (máximo 125 caracteres).",
     useCustomPrompts: false
   });
-  const [gmailApiSettings, setGmailApiSettings] = useState<GmailApiSettings>({
-    clientId: '',
-    clientSecret: '',
-    redirectUri: 'https://dbkoko-convertidor-imagenes.mvitku.easypanel.host/auth/callback', // URL fija de EasyPanel
-    fromEmail: '',
-    fromName: 'Sistema de Recuperación',
-    enabled: false
-  });
   const [imageDescriptions, setImageDescriptions] = useState<ImageDescription[]>([]);
   const [convertedImages, setConvertedImages] = useState<{ blob: Blob; filename: string }[]>([]);
   const [isConverting, setIsConverting] = useState(false);
   const [isGeneratingDescriptions, setIsGeneratingDescriptions] = useState(false);
-  const [currentPage, setCurrentPage] = useState<'main' | 'chatgpt-config' | 'prompt-config' | 'gmail-api-config' | 'gmail-callback' | 'currency-api-config' | 'usage-history' | 'user-management' | 'profile-config'>('main');
+  const [currentPage, setCurrentPage] = useState<'main' | 'chatgpt-config' | 'prompt-config' | 'currency-api-config' | 'usage-history' | 'user-management' | 'profile-config'>('main');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [authState, setAuthState] = useState<AuthState>({
@@ -84,12 +73,10 @@ function App() {
         const userConversionSettings = await databaseService.getUserConversionSettings(username);
         const userChatGPTSettings = await databaseService.getUserChatGPTSettings(username);
         const userPromptSettings = await databaseService.getUserPromptSettings(username);
-        const userGmailApiSettings = await databaseService.getUserGmailApiSettings(username);
         
         setSettings(userConversionSettings);
         setChatGPTSettings(userChatGPTSettings);
         setPromptSettings(userPromptSettings);
-        setGmailApiSettings(userGmailApiSettings);
         
         addNotification({
           type: 'success',
@@ -121,15 +108,6 @@ function App() {
         console.log('🚀 Inicializando aplicación...');
         setIsLoading(true);
         
-        // Verificar si estamos en la página de callback de Gmail
-        if (isGmailCallbackPage()) {
-          console.log('🔄 Detectada página de callback de Gmail');
-          console.log('📍 URL actual:', window.location.href);
-          console.log('🪟 Es ventana popup:', window.opener !== null);
-          setCurrentPage('gmail-callback');
-          setIsLoading(false);
-          return;
-        }
         
         console.log('📊 Inicializando base de datos...');
         await databaseService.initialize();
@@ -259,49 +237,6 @@ function App() {
     }
   }, []);
 
-  // Función para manejar cambios en configuración Gmail API
-  const handleGmailApiSettingsChange = useCallback(async (newSettings: GmailApiSettings) => {
-    try {
-      if (authState.currentUser) {
-        await databaseService.saveUserGmailApiSettings(authState.currentUser.username, newSettings);
-        setGmailApiSettings(newSettings);
-        
-        addNotification({
-          type: 'success',
-          title: 'Configuración Gmail API guardada',
-          message: 'La configuración de Gmail API se ha guardado correctamente'
-        });
-      }
-    } catch (error) {
-      console.error('Error saving Gmail API settings:', error);
-      addNotification({
-        type: 'error',
-        title: 'Error',
-        message: 'No se pudo guardar la configuración Gmail API'
-      });
-    }
-  }, [authState.currentUser, addNotification]);
-
-  // Función para manejar éxito en autorización de Gmail
-  const handleGmailAuthSuccess = useCallback((accessToken: string, refreshToken: string) => {
-    const updatedSettings = {
-      ...gmailApiSettings,
-      accessToken,
-      refreshToken
-    };
-    handleGmailApiSettingsChange(updatedSettings);
-    setCurrentPage('gmail-api-config');
-  }, [gmailApiSettings, handleGmailApiSettingsChange]);
-
-  // Función para manejar error en autorización de Gmail
-  const handleGmailAuthError = useCallback((error: string) => {
-    addNotification({
-      type: 'error',
-      title: 'Error de autorización Gmail',
-      message: error
-    });
-    setCurrentPage('gmail-api-config');
-  }, [addNotification]);
 
 
   const removeNotification = useCallback((id: string) => {
@@ -1087,24 +1022,6 @@ function App() {
     );
   }
 
-  if (currentPage === 'gmail-api-config') {
-    return (
-      <GmailApiConfig
-        settings={gmailApiSettings}
-        onSettingsChange={handleGmailApiSettingsChange}
-        onBack={() => setCurrentPage('main')}
-      />
-    );
-  }
-
-  if (currentPage === 'gmail-callback') {
-    return (
-      <GmailCallback
-        onAuthSuccess={handleGmailAuthSuccess}
-        onAuthError={handleGmailAuthError}
-      />
-    );
-  }
 
   if (currentPage === 'currency-api-config') {
     return (
@@ -1162,7 +1079,6 @@ function App() {
       <Header 
         onChatGPTConfig={() => setCurrentPage('chatgpt-config')}
         onPromptConfig={() => setCurrentPage('prompt-config')}
-        onGmailApiConfig={() => setCurrentPage('gmail-api-config')}
         onCurrencyAPIConfig={() => setCurrentPage('currency-api-config')}
         onClearConfig={handleClearConfig}
         onUsageHistory={() => setCurrentPage('usage-history')}

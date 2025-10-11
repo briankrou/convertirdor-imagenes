@@ -1,4 +1,4 @@
-import { UserSettings, UserChatGPTSettings, UserPromptSettings, UserConversionSettings, UserSMTPSettings, UserPreferences, GmailApiSettings } from '../types';
+import { UserSettings, UserChatGPTSettings, UserPromptSettings, UserConversionSettings, UserPreferences } from '../types';
 import { DatabaseSync } from '../utils/dbSync';
 
 interface DatabaseSchema {
@@ -79,16 +79,6 @@ class DatabaseService {
         captionPrompt: "Crea una leyenda corta y atractiva para esta imagen que resalte las características principales del producto (1 oración).",
         altTextPrompt: "Genera un texto alternativo descriptivo para accesibilidad que describa claramente el contenido de la imagen (máximo 125 caracteres).",
         useCustomPrompts: false
-      },
-      smtpSettings: {
-        host: '',
-        port: 587,
-        secure: false,
-        username: '',
-        password: '',
-        fromEmail: '',
-        fromName: 'Sistema de Recuperación',
-        enabled: false
       },
       preferences: {
         currency: 'USD',
@@ -183,77 +173,6 @@ class DatabaseService {
     await this.saveData();
   }
 
-  // Métodos para configuración SMTP
-  async getUserSMTPSettings(username: string): Promise<UserSMTPSettings> {
-    await this.ensureInitialized();
-    
-    if (!this.data) {
-      throw new Error('Database not initialized');
-    }
-
-    const userSettings = this.data.userSettings[username];
-    if (!userSettings || !userSettings.smtpSettings) {
-      // Retornar configuración por defecto
-      return {
-        host: '',
-        port: 587,
-        secure: false,
-        username: '',
-        password: '',
-        fromEmail: '',
-        fromName: 'Sistema de Recuperación',
-        enabled: false
-      };
-    }
-
-    return userSettings.smtpSettings;
-  }
-
-  async saveUserSMTPSettings(username: string, settings: UserSMTPSettings): Promise<void> {
-    await this.ensureInitialized();
-    
-    if (!this.data) {
-      throw new Error('Database not initialized');
-    }
-
-    // Asegurar que el usuario existe
-    if (!this.data.userSettings[username]) {
-      this.data.userSettings[username] = {
-        username,
-        chatGPTSettings: {
-          apiKey: '',
-          model: 'gpt-4o',
-          enabled: false
-        },
-        promptSettings: {
-          titlePrompt: '',
-          descriptionPrompt: '',
-          captionPrompt: '',
-          altTextPrompt: '',
-          useCustomPrompts: false
-        },
-        conversionSettings: {
-          format: 'png',
-          quality: 90,
-          imageNamePrefix: 'imagen',
-          sdkSuffix: 'A5455',
-          productDescription: '',
-          resize: {
-            enabled: false,
-            width: 1920,
-            height: 1080,
-            maintainAspectRatio: true
-          }
-        },
-        smtpSettings: settings
-      };
-    } else {
-      this.data.userSettings[username].smtpSettings = settings;
-    }
-
-    this.data.lastUpdated = new Date().toISOString();
-    await this.saveData();
-  }
 
   // Métodos para preferencias de usuario
   async getUserPreferences(username: string): Promise<UserPreferences> {
@@ -364,91 +283,6 @@ class DatabaseService {
     throw new Error('This method is deprecated. Use clearAllUserData() instead.');
   }
 
-  // Métodos para configuración Gmail API
-  async getUserGmailApiSettings(username: string): Promise<GmailApiSettings> {
-    await this.ensureInitialized();
-    
-    if (!this.data) {
-      throw new Error('Database not initialized');
-    }
-
-    const userSettings = this.data.userSettings[username];
-    if (!userSettings || !userSettings.gmailApiSettings) {
-      // Retornar configuración por defecto
-      return {
-        clientId: '',
-        clientSecret: '',
-        redirectUri: 'http://localhost:3000/auth/callback',
-        fromEmail: '',
-        fromName: 'Sistema de Recuperación',
-        enabled: false
-      };
-    }
-
-    return userSettings.gmailApiSettings;
-  }
-
-  async saveUserGmailApiSettings(username: string, settings: GmailApiSettings): Promise<void> {
-    await this.ensureInitialized();
-    
-    if (!this.data) {
-      throw new Error('Database not initialized');
-    }
-
-    // Asegurar que el usuario existe
-    if (!this.data.userSettings[username]) {
-      this.data.userSettings[username] = {
-        username,
-        chatGPTSettings: {
-          apiKey: '',
-          model: 'gpt-4o',
-          enabled: false
-        },
-        promptSettings: {
-          titlePrompt: '',
-          descriptionPrompt: '',
-          captionPrompt: '',
-          altTextPrompt: '',
-          useCustomPrompts: false
-        },
-        conversionSettings: {
-          format: 'jpeg',
-          quality: 80,
-          width: 0,
-          height: 0,
-          maintainAspectRatio: true,
-          backgroundColor: '#FFFFFF'
-        },
-        smtpSettings: {
-          host: '',
-          port: 587,
-          secure: false,
-          username: '',
-          password: '',
-          fromEmail: '',
-          fromName: 'Sistema de Recuperación',
-          enabled: false
-        },
-        gmailApiSettings: {
-          clientId: '',
-          clientSecret: '',
-          redirectUri: 'http://localhost:3000/auth/callback',
-          fromEmail: '',
-          fromName: 'Sistema de Recuperación',
-          enabled: false
-        },
-        preferences: {
-          theme: 'light',
-          language: 'es',
-          notifications: true
-        }
-      };
-    }
-
-    // Actualizar configuración Gmail API
-    this.data.userSettings[username].gmailApiSettings = settings;
-    await this.saveData();
-  }
 }
 
 // Export singleton instance
