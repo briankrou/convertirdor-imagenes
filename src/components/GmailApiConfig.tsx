@@ -35,11 +35,29 @@ export const GmailApiConfig: React.FC<GmailApiConfigProps> = ({
   };
 
   const handleTestConnection = async () => {
-    if (!settings.clientId || !settings.clientSecret || !settings.fromEmail || !settings.fromName) {
+    // Validar configuración básica
+    if (!settings.clientId || !settings.clientSecret) {
       setConnectionStatus('error');
       showConfirm(
         'Configuración incompleta',
-        'Por favor completa la configuración de Gmail API (Client ID, Client Secret, Email del remitente y Nombre del remitente) antes de probar la conexión.',
+        'Por favor configura el Client ID y Client Secret de Gmail API antes de probar la conexión.',
+        () => {},
+        {
+          confirmText: 'Entendido',
+          cancelText: '',
+          type: 'error',
+          showButtons: false
+        }
+      );
+      return;
+    }
+
+    // Validar configuración del remitente
+    if (!settings.fromEmail || !settings.fromName) {
+      setConnectionStatus('error');
+      showConfirm(
+        'Configuración del remitente incompleta',
+        'Por favor configura el Email del remitente y Nombre del remitente antes de probar la conexión.',
         () => {},
         {
           confirmText: 'Entendido',
@@ -107,10 +125,27 @@ export const GmailApiConfig: React.FC<GmailApiConfigProps> = ({
   };
 
   const handleAuthorize = async () => {
+    // Validar configuración básica
     if (!settings.clientId || !settings.clientSecret) {
       showConfirm(
         'Configuración incompleta',
-        'Por favor configura el Client ID y Client Secret antes de autorizar.',
+        'Por favor configura el Client ID y Client Secret de Gmail API antes de autorizar.',
+        () => {},
+        {
+          confirmText: 'Entendido',
+          cancelText: '',
+          type: 'error',
+          showButtons: false
+        }
+      );
+      return;
+    }
+
+    // Validar configuración del remitente
+    if (!settings.fromEmail || !settings.fromName) {
+      showConfirm(
+        'Configuración del remitente incompleta',
+        'Por favor configura el Email del remitente y Nombre del remitente antes de autorizar.',
         () => {},
         {
           confirmText: 'Entendido',
@@ -273,6 +308,7 @@ export const GmailApiConfig: React.FC<GmailApiConfigProps> = ({
   };
 
   const handleTestEmail = async () => {
+    // Validar email de prueba
     if (!testEmailAddress || !gmailApiService.isValidEmail(testEmailAddress)) {
       setEmailTestStatus('error');
       showConfirm(
@@ -289,11 +325,29 @@ export const GmailApiConfig: React.FC<GmailApiConfigProps> = ({
       return;
     }
 
+    // Validar autorización
     if (!settings.accessToken) {
       setEmailTestStatus('error');
       showConfirm(
         'No autorizado',
         'Necesitas autorizar la aplicación con Gmail antes de enviar emails. Haz clic en "Autorizar con Gmail".',
+        () => {},
+        {
+          confirmText: 'Entendido',
+          cancelText: '',
+          type: 'error',
+          showButtons: false
+        }
+      );
+      return;
+    }
+
+    // Validar configuración del remitente
+    if (!settings.fromEmail || !settings.fromName) {
+      setEmailTestStatus('error');
+      showConfirm(
+        'Configuración del remitente incompleta',
+        'Por favor configura el Email del remitente y Nombre del remitente antes de enviar emails.',
         () => {},
         {
           confirmText: 'Entendido',
@@ -536,7 +590,22 @@ export const GmailApiConfig: React.FC<GmailApiConfigProps> = ({
 
             {/* Configuración de la API */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-6">Configuración de Gmail API</h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-semibold text-gray-900">Configuración de Gmail API</h2>
+                <div className="flex items-center space-x-2">
+                  {settings.accessToken ? (
+                    <div className="flex items-center space-x-1 text-green-600">
+                      <CheckCircle className="w-4 h-4" />
+                      <span className="text-sm font-medium">Autorizado</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center space-x-1 text-gray-500">
+                      <XCircle className="w-4 h-4" />
+                      <span className="text-sm font-medium">No autorizado</span>
+                    </div>
+                  )}
+                </div>
+              </div>
               
               <div className="space-y-6">
                 <div>
