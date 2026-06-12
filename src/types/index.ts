@@ -23,7 +23,7 @@ export interface ConversionSettings {
 
 export interface ChatGPTSettings {
   apiKey: string;
-  model: 'gpt-4-turbo' | 'gpt-4o' | 'gpt-4o-mini' | 'gpt-4.1' | 'o3';
+  model: 'gpt-4o' | 'gpt-4o-mini' | 'gpt-4.1' | 'gpt-4.1-mini' | 'gpt-4.1-nano' | 'o3' | 'o4-mini';
   enabled: boolean;
 }
 
@@ -36,6 +36,69 @@ export interface PromptSettings {
 }
 
 
+export type ContentMode =
+  | 'ecommerce'
+  | 'services'
+  | 'general'
+  | 'social_media'
+  | 'catalog'
+  | 'custom';
+
+export type AIProvider = 'openai' | 'anthropic' | 'google' | 'openrouter';
+
+export interface Brand {
+  id: string;
+  name: string;
+  websiteUrl?: string;
+  keywords?: string[];
+  tone?: string;
+  logoUrl?: string;
+  description?: string;
+  createdAt: string;
+}
+
+export interface ConvertedImageEntry {
+  blob: Blob;
+  filename: string;
+  imageId: number;
+  originalSize: number;
+  convertedSize: number;
+}
+
+export interface AIProviderConfig {
+  apiKey: string;
+  enabled: boolean;
+}
+
+export interface ModeModelConfig {
+  provider: AIProvider;
+  model: string;
+}
+
+export interface AIField {
+  key: string;
+  label: string;
+  enabled: boolean;
+  maxLength?: number;
+}
+
+export interface ContentModeConfig {
+  id: ContentMode;
+  label: string;
+  icon: string;
+  fields: AIField[];
+  defaultPrompt: string;
+}
+
+export interface ModePromptConfig {
+  useCustom: boolean;
+  defaultPrompt: string;
+  fieldPrompts: Record<string, string>; // field.key → instrucción personalizada
+}
+
+// Contexto específico por modo que se pasa como contexto adicional a la IA
+export type PerModeContext = Partial<Record<ContentMode, Record<string, string>>>;
+
 export interface ImageDescription {
   id: number;
   imageName: string;
@@ -46,7 +109,10 @@ export interface ImageDescription {
   description: string;
   caption: string;
   altText: string;
-  fullResponse?: string; // Respuesta completa de ChatGPT
+  fullResponse?: string;
+  fields?: Record<string, string>;
+  fieldLabels?: Record<string, string>;
+  contentMode?: ContentMode;
 }
 
 export interface UsageRecord {
@@ -99,7 +165,7 @@ export interface AuthState {
 
 export interface UserChatGPTSettings {
   apiKey: string;
-  model: 'gpt-4-turbo' | 'gpt-4o' | 'gpt-4o-mini' | 'gpt-4.1' | 'o3';
+  model: 'gpt-4o' | 'gpt-4o-mini' | 'gpt-4.1' | 'gpt-4.1-mini' | 'gpt-4.1-nano' | 'o3' | 'o4-mini';
   enabled: boolean;
 }
 
@@ -138,6 +204,13 @@ export interface UserSettings {
   promptSettings: UserPromptSettings;
   conversionSettings: UserConversionSettings;
   preferences: UserPreferences;
+  defaultContentMode?: ContentMode;
+  customModes?: ContentModeConfig[];
+  modePrompts?: Partial<Record<ContentMode, ModePromptConfig>>;
+  perModeContext?: PerModeContext;
+  providers?: Partial<Record<AIProvider, AIProviderConfig>>;
+  modeModels?: Partial<Record<ContentMode, ModeModelConfig>>;
+  brands?: Brand[];
 }
 
 // Alias para compatibilidad con el código existente

@@ -1,6 +1,6 @@
 import React from 'react';
 import { ImageData, ConversionSettings, ImageDescription } from '../types';
-import { X, FileImage, Download, CheckCircle } from 'lucide-react';
+import { X, FileImage, Download, CheckCircle, TrendingDown } from 'lucide-react';
 import { formatFileSize } from '../utils/formatFileSize';
 import { convertSingleImage } from '../utils/imageConverter';
 
@@ -10,14 +10,16 @@ interface ImageCardProps {
   settings: ConversionSettings;
   onNotification: (notification: { type: 'success' | 'error'; title: string; message: string }) => void;
   description?: ImageDescription;
+  convertedInfo?: { originalSize: number; convertedSize: number };
 }
 
-export const ImageCard: React.FC<ImageCardProps> = ({ 
-  image, 
-  onRemove, 
-  settings, 
+export const ImageCard: React.FC<ImageCardProps> = ({
+  image,
+  onRemove,
+  settings,
   onNotification,
-  description
+  description,
+  convertedInfo,
 }) => {
   const [isDownloading, setIsDownloading] = React.useState(false);
 
@@ -85,6 +87,18 @@ export const ImageCard: React.FC<ImageCardProps> = ({
                 {formatFileSize(image.size)}
               </span>
             </div>
+            {convertedInfo && (() => {
+              const pct = Math.round((1 - convertedInfo.convertedSize / convertedInfo.originalSize) * 100);
+              const grew = pct < 0;
+              return (
+                <div className={`flex items-center gap-1 text-xs mt-1 font-medium ${grew ? 'text-amber-500' : 'text-emerald-600'}`}>
+                  <TrendingDown className="w-3 h-3" />
+                  <span>{formatFileSize(convertedInfo.convertedSize)}</span>
+                  <span className="text-gray-400">·</span>
+                  <span>{grew ? '+' : '-'}{Math.abs(pct)}%</span>
+                </div>
+              );
+            })()}
             {description && (
               <div className="flex items-center text-xs text-green-600 mt-1 font-medium">
                 <CheckCircle className="w-3 h-3 mr-1" />

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, Settings, Brain, FileText, Trash2, BarChart3, Users, LogOut, User, Globe } from 'lucide-react';
+import { Brain, FileText, Trash2, BarChart3, Users, LogOut, User, Globe, Building2 } from 'lucide-react';
 
 interface HeaderProps {
   onChatGPTConfig?: () => void;
@@ -8,21 +8,23 @@ interface HeaderProps {
   onClearConfig?: () => void;
   onUsageHistory?: () => void;
   onUserManagement?: () => void;
+  onBrandsPanel?: () => void;
   onProfileConfig?: () => void;
   onLogout?: () => void;
   currentUser?: { username: string; isRoot: boolean; profileName?: string; profileImage?: string } | null;
 }
 
-export const Header: React.FC<HeaderProps> = ({ 
-  onChatGPTConfig, 
-  onPromptConfig, 
+export const Header: React.FC<HeaderProps> = ({
+  onChatGPTConfig,
+  onPromptConfig,
   onCurrencyAPIConfig,
-  onClearConfig, 
-  onUsageHistory, 
-  onUserManagement, 
+  onClearConfig,
+  onUsageHistory,
+  onUserManagement,
+  onBrandsPanel,
   onProfileConfig,
-  onLogout, 
-  currentUser 
+  onLogout,
+  currentUser
 }) => {
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-0 flex items-center justify-between shadow-sm">
@@ -71,7 +73,14 @@ export const Header: React.FC<HeaderProps> = ({
             <Globe className="w-5 h-5" />
           </button>
         )}
-        <button 
+        <button
+          onClick={onBrandsPanel}
+          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+          title="Gestión de Marcas"
+        >
+          <Building2 className="w-5 h-5" />
+        </button>
+        <button
           onClick={onUsageHistory}
           className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
           title="Historial de Uso"

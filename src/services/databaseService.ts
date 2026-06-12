@@ -1,4 +1,4 @@
-import { UserSettings, UserChatGPTSettings, UserPromptSettings, UserConversionSettings, UserPreferences } from '../types';
+import { UserSettings, UserChatGPTSettings, UserPromptSettings, UserConversionSettings, UserPreferences, ContentMode, ContentModeConfig, ModePromptConfig, PerModeContext, AIProvider, AIProviderConfig, ModeModelConfig, Brand } from '../types';
 import { DatabaseSync } from '../utils/dbSync';
 
 interface DatabaseSchema {
@@ -66,11 +66,17 @@ class DatabaseService {
         quality: 90,
         imageNamePrefix: 'imagen',
         sdkSuffix: 'A5455',
-        productDescription: ''
+        productDescription: '',
+        resize: {
+          enabled: false,
+          width: 1920,
+          height: 1080,
+          maintainAspectRatio: true
+        }
       },
       chatGPTSettings: {
         apiKey: '',
-        model: 'gpt-4o',
+        model: 'gpt-4.1',
         enabled: false
       },
       promptSettings: {
@@ -84,7 +90,9 @@ class DatabaseService {
         currency: 'USD',
         language: 'es',
         timezone: 'America/Mexico_City'
-      }
+      },
+      defaultContentMode: 'ecommerce',
+      customModes: []
     };
   }
 
@@ -212,6 +220,28 @@ class DatabaseService {
     await this.saveData();
   }
 
+  async getUserContentMode(username: string): Promise<ContentMode> {
+    const settings = await this.getUserSettings(username);
+    return settings.defaultContentMode ?? 'ecommerce';
+  }
+
+  async saveUserContentMode(username: string, mode: ContentMode): Promise<void> {
+    const settings = await this.getUserSettings(username);
+    settings.defaultContentMode = mode;
+    await this.saveUserSettings(username, settings);
+  }
+
+  async getUserCustomModes(username: string): Promise<ContentModeConfig[]> {
+    const settings = await this.getUserSettings(username);
+    return settings.customModes ?? [];
+  }
+
+  async saveUserCustomModes(username: string, modes: ContentModeConfig[]): Promise<void> {
+    const settings = await this.getUserSettings(username);
+    settings.customModes = modes;
+    await this.saveUserSettings(username, settings);
+  }
+
   // Get last updated timestamp
   async getLastUpdated(): Promise<string> {
     await this.ensureInitialized();
@@ -229,58 +259,59 @@ class DatabaseService {
     return this.data!;
   }
 
-  // Legacy methods for backward compatibility (will be removed)
-  async getConversionSettings(): Promise<ConversionSettings> {
-    // This method is deprecated, use getUserConversionSettings instead
-    throw new Error('This method is deprecated. Use getUserConversionSettings(username) instead.');
+  async getUserPerModeContext(username: string): Promise<PerModeContext> {
+    const settings = await this.getUserSettings(username);
+    return settings.perModeContext ?? {};
   }
 
-  async saveConversionSettings(settings: ConversionSettings): Promise<void> {
-    // This method is deprecated, use saveUserConversionSettings instead
-    throw new Error('This method is deprecated. Use saveUserConversionSettings(username, settings) instead.');
+  async saveUserPerModeContext(username: string, ctx: PerModeContext): Promise<void> {
+    const settings = await this.getUserSettings(username);
+    settings.perModeContext = ctx;
+    await this.saveUserSettings(username, settings);
   }
 
-  async getChatGPTSettings(): Promise<ChatGPTSettings> {
-    // This method is deprecated, use getUserChatGPTSettings instead
-    throw new Error('This method is deprecated. Use getUserChatGPTSettings(username) instead.');
+  async getUserModePrompts(username: string): Promise<Partial<Record<string, ModePromptConfig>>> {
+    const settings = await this.getUserSettings(username);
+    return settings.modePrompts ?? {};
   }
 
-  async saveChatGPTSettings(settings: ChatGPTSettings): Promise<void> {
-    // This method is deprecated, use saveUserChatGPTSettings instead
-    throw new Error('This method is deprecated. Use saveUserChatGPTSettings(username, settings) instead.');
+  async saveUserModePrompts(username: string, prompts: Partial<Record<string, ModePromptConfig>>): Promise<void> {
+    const settings = await this.getUserSettings(username);
+    settings.modePrompts = prompts as Partial<Record<ContentMode, ModePromptConfig>>;
+    await this.saveUserSettings(username, settings);
   }
 
-  async getPromptSettings(): Promise<PromptSettings> {
-    // This method is deprecated, use getUserPromptSettings instead
-    throw new Error('This method is deprecated. Use getUserPromptSettings(username) instead.');
+  async getUserProviders(username: string): Promise<Partial<Record<AIProvider, AIProviderConfig>>> {
+    const settings = await this.getUserSettings(username);
+    return settings.providers ?? {};
   }
 
-  async savePromptSettings(settings: PromptSettings): Promise<void> {
-    // This method is deprecated, use saveUserPromptSettings instead
-    throw new Error('This method is deprecated. Use saveUserPromptSettings(username, settings) instead.');
+  async saveUserProviders(username: string, providers: Partial<Record<AIProvider, AIProviderConfig>>): Promise<void> {
+    const settings = await this.getUserSettings(username);
+    settings.providers = providers;
+    await this.saveUserSettings(username, settings);
   }
 
-  async getAllSettings(): Promise<{
-    conversionSettings: ConversionSettings;
-    chatGPTSettings: ChatGPTSettings;
-    promptSettings: PromptSettings;
-  }> {
-    // This method is deprecated
-    throw new Error('This method is deprecated. Use getUserSettings(username) instead.');
+  async getUserModeModels(username: string): Promise<Partial<Record<ContentMode, ModeModelConfig>>> {
+    const settings = await this.getUserSettings(username);
+    return settings.modeModels ?? {};
   }
 
-  async saveAllSettings(settings: {
-    conversionSettings: ConversionSettings;
-    chatGPTSettings: ChatGPTSettings;
-    promptSettings: PromptSettings;
-  }): Promise<void> {
-    // This method is deprecated
-    throw new Error('This method is deprecated. Use saveUserSettings(username, settings) instead.');
+  async saveUserModeModels(username: string, modeModels: Partial<Record<ContentMode, ModeModelConfig>>): Promise<void> {
+    const settings = await this.getUserSettings(username);
+    settings.modeModels = modeModels;
+    await this.saveUserSettings(username, settings);
   }
 
-  async clearAllData(): Promise<void> {
-    // This method is deprecated, use clearAllUserData instead
-    throw new Error('This method is deprecated. Use clearAllUserData() instead.');
+  async getUserBrands(username: string): Promise<Brand[]> {
+    const settings = await this.getUserSettings(username);
+    return settings.brands ?? [];
+  }
+
+  async saveUserBrands(username: string, brands: Brand[]): Promise<void> {
+    const settings = await this.getUserSettings(username);
+    settings.brands = brands;
+    await this.saveUserSettings(username, settings);
   }
 
 }

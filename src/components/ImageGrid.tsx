@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { ImageData, ConversionSettings, ImageDescription } from '../types';
+import { ImageData, ConversionSettings, ImageDescription, ConvertedImageEntry } from '../types';
 import { ImageCard } from './ImageCard';
 import { Plus } from 'lucide-react';
 
@@ -10,6 +10,7 @@ interface ImageGridProps {
   settings: ConversionSettings;
   onNotification: (notification: { type: 'success' | 'error'; title: string; message: string }) => void;
   imageDescriptions?: ImageDescription[];
+  convertedImages?: ConvertedImageEntry[];
 }
 
 export const ImageGrid: React.FC<ImageGridProps> = ({
@@ -18,7 +19,8 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
   onFilesSelected,
   settings,
   onNotification,
-  imageDescriptions = []
+  imageDescriptions = [],
+  convertedImages = [],
 }) => {
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -41,6 +43,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {images.map((image) => {
           const description = imageDescriptions.find(desc => desc.id === image.id);
+          const converted = convertedImages.find(c => c.imageId === image.id);
           return (
             <ImageCard
               key={image.id}
@@ -49,6 +52,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
               settings={settings}
               onNotification={onNotification}
               description={description}
+              convertedInfo={converted ? { originalSize: converted.originalSize, convertedSize: converted.convertedSize } : undefined}
             />
           );
         })}

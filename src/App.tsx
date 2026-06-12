@@ -13,11 +13,14 @@ import { UserManagement } from './components/UserManagement';
 import { ProfileConfig } from './components/ProfileConfig';
 import { Popup } from './components/Popup';
 import { usePopup } from './hooks/usePopup';
-import { ImageData, ImageDescription, Notification, AuthState, UserConversionSettings, UserChatGPTSettings, UserPromptSettings } from './types';
+import { ImageData, ImageDescription, Notification, AuthState, UserConversionSettings, UserChatGPTSettings, UserPromptSettings, ContentModeConfig, ModePromptConfig, PerModeContext, AIProvider, AIProviderConfig, ContentMode, ModeModelConfig, Brand, ConvertedImageEntry } from './types';
 // import { convertImages } from './utils/imageConverter'; // No se está usando
 import { ChatGPTService } from './services/chatgptService';
 import { databaseService } from './services/databaseService';
 import { authService } from './services/authService';
+import { CONTENT_MODES, getActiveContext } from './services/contentModes';
+import { ContentModeSelector } from './components/ContentModeSelector';
+import { BrandsPanel } from './components/BrandsPanel';
 
 function App() {
   const [images, setImages] = useState<ImageData[]>([]);
@@ -48,10 +51,17 @@ function App() {
     useCustomPrompts: false
   });
   const [imageDescriptions, setImageDescriptions] = useState<ImageDescription[]>([]);
-  const [convertedImages, setConvertedImages] = useState<{ blob: Blob; filename: string }[]>([]);
+  const [convertedImages, setConvertedImages] = useState<ConvertedImageEntry[]>([]);
   const [isConverting, setIsConverting] = useState(false);
   const [isGeneratingDescriptions, setIsGeneratingDescriptions] = useState(false);
-  const [currentPage, setCurrentPage] = useState<'main' | 'chatgpt-config' | 'prompt-config' | 'currency-api-config' | 'usage-history' | 'user-management' | 'profile-config'>('main');
+  const [activeContentMode, setActiveContentMode] = useState<ContentModeConfig>(CONTENT_MODES[0]);
+  const [customModes, setCustomModes] = useState<ContentModeConfig[]>([]);
+  const [modePrompts, setModePrompts] = useState<Partial<Record<string, ModePromptConfig>>>({});
+  const [perModeContext, setPerModeContext] = useState<PerModeContext>({});
+  const [aiProviders, setAiProviders] = useState<Partial<Record<AIProvider, AIProviderConfig>>>({});
+  const [modeModels, setModeModels] = useState<Partial<Record<ContentMode, ModeModelConfig>>>({});
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [currentPage, setCurrentPage] = useState<'main' | 'chatgpt-config' | 'prompt-config' | 'currency-api-config' | 'usage-history' | 'user-management' | 'profile-config' | 'content-mode-selector' | 'brands-panel'>('main');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [authState, setAuthState] = useState<AuthState>({
@@ -73,10 +83,27 @@ function App() {
         const userConversionSettings = await databaseService.getUserConversionSettings(username);
         const userChatGPTSettings = await databaseService.getUserChatGPTSettings(username);
         const userPromptSettings = await databaseService.getUserPromptSettings(username);
-        
+        const savedContentModeId = await databaseService.getUserContentMode(username);
+        const savedCustomModes = await databaseService.getUserCustomModes(username);
+        const savedModePrompts = await databaseService.getUserModePrompts(username);
+        const savedPerModeContext = await databaseService.getUserPerModeContext(username);
+        const savedAiProviders = await databaseService.getUserProviders(username);
+        const savedModeModels = await databaseService.getUserModeModels(username);
+        const savedBrands = await databaseService.getUserBrands(username);
+
         setSettings(userConversionSettings);
         setChatGPTSettings(userChatGPTSettings);
         setPromptSettings(userPromptSettings);
+        setCustomModes(savedCustomModes);
+        setModePrompts(savedModePrompts);
+        setPerModeContext(savedPerModeContext);
+        setAiProviders(savedAiProviders);
+        setModeModels(savedModeModels);
+        setBrands(savedBrands);
+
+        const allModes = [...CONTENT_MODES, ...savedCustomModes];
+        const savedMode = allModes.find(m => m.id === savedContentModeId) ?? CONTENT_MODES[0];
+        setActiveContentMode(savedMode);
         
         addNotification({
           type: 'success',
@@ -168,6 +195,65 @@ function App() {
     }
   }, [authState.currentUser]);
 
+  const handleModePromptsChange = useCallback(async (prompts: Partial<Record<string, ModePromptConfig>>) => {
+    setModePrompts(prompts);
+    if (authState.currentUser) {
+      await databaseService.saveUserModePrompts(authState.currentUser.username, prompts);
+    }
+  }, [authState.currentUser]);
+
+  const handleAiProvidersChange = useCallback(async (providers: Partial<Record<AIProvider, AIProviderConfig>>) => {
+    setAiProviders(providers);
+    if (authState.currentUser) {
+      await databaseService.saveUserProviders(authState.currentUser.username, providers);
+    }
+  }, [authState.currentUser]);
+
+  const handleModeModelsChange = useCallback(async (models: Partial<Record<ContentMode, ModeModelConfig>>) => {
+    setModeModels(models);
+    if (authState.currentUser) {
+      await databaseService.saveUserModeModels(authState.currentUser.username, models);
+    }
+  }, [authState.currentUser]);
+
+  const handleBrandsChange = useCallback(async (updated: Brand[]) => {
+    setBrands(updated);
+    if (authState.currentUser) {
+      await databaseService.saveUserBrands(authState.currentUser.username, updated);
+    }
+  }, [authState.currentUser]);
+
+  const handleSuggestKeywords = useCallback(async (name: string, description: string): Promise<string[]> => {
+    const apiKey = chatGPTSettings.apiKey?.trim();
+    if (!apiKey) return [];
+    try {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: chatGPTSettings.model ?? 'gpt-4.1-mini',
+          messages: [{ role: 'user', content: `Sugiere 6 palabras clave SEO para la marca "${name}"${description ? `. Descripción: ${description}` : ''}. Responde solo con las palabras clave separadas por comas, sin numeración ni explicaciones.` }],
+          max_tokens: 120,
+        }),
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      const text: string = data.choices?.[0]?.message?.content ?? '';
+      return text.split(',').map((k: string) => k.trim()).filter(Boolean);
+    } catch {
+      return [];
+    }
+  }, [chatGPTSettings]);
+
+  const handleModeContextChange = useCallback(async (ctx: Record<string, string>) => {
+    const modeKey = activeContentMode.id;
+    const updated: PerModeContext = { ...perModeContext, [modeKey]: ctx };
+    setPerModeContext(updated);
+    if (authState.currentUser) {
+      await databaseService.saveUserPerModeContext(authState.currentUser.username, updated);
+    }
+  }, [activeContentMode.id, perModeContext, authState.currentUser]);
+
   // Función para limpiar configuración de ChatGPT
   const clearChatGPTSettings = useCallback(async () => {
     try {
@@ -208,12 +294,14 @@ function App() {
           useCustomPrompts: false
         };
         await databaseService.saveUserPromptSettings(authState.currentUser.username, defaultSettings);
+        await databaseService.saveUserModePrompts(authState.currentUser.username, {});
         setPromptSettings(defaultSettings);
-        
+        setModePrompts({});
+
         addNotification({
           type: 'success',
           title: 'Configuración limpiada',
-          message: 'La configuración de prompts se ha restablecido a los valores predeterminados'
+          message: 'Los prompts de todos los modos se han restablecido'
         });
       }
     } catch (error) {
@@ -348,6 +436,21 @@ function App() {
   }, [savePromptSettings]);
 
 
+  const handleContentModeChange = useCallback(async (mode: ContentModeConfig) => {
+    setActiveContentMode(mode);
+    if (authState.currentUser) {
+      await databaseService.saveUserContentMode(authState.currentUser.username, mode.id);
+    }
+    setCurrentPage('main');
+  }, [authState.currentUser]);
+
+  const handleCustomModesChange = useCallback(async (modes: ContentModeConfig[]) => {
+    setCustomModes(modes);
+    if (authState.currentUser) {
+      await databaseService.saveUserCustomModes(authState.currentUser.username, modes);
+    }
+  }, [authState.currentUser]);
+
   // Funciones de autenticación
   const handleLoginSuccess = useCallback(() => {
     const auth = authService.getAuthState();
@@ -481,19 +584,19 @@ function App() {
     }
 
     setIsConverting(true);
-    const newConvertedImages: { blob: Blob; filename: string }[] = [];
+    const newConvertedImages: ConvertedImageEntry[] = [];
 
     try {
       for (let i = 0; i < images.length; i++) {
         const image = images[i];
-        
+
         // Convertir la imagen a Blob
         const blob = await convertSingleImageToBlob(image, settings);
-        
+
         // Generar nombre de archivo
         const filename = generateFileName(image.name, settings, i + 1);
-        
-        newConvertedImages.push({ blob, filename });
+
+        newConvertedImages.push({ blob, filename, imageId: image.id, originalSize: image.size, convertedSize: blob.size });
       }
 
       setConvertedImages(newConvertedImages);
@@ -527,7 +630,7 @@ function App() {
 
     setIsConverting(true);
     setIsGeneratingDescriptions(true);
-    const newConvertedImages: { blob: Blob; filename: string }[] = [];
+    const newConvertedImages: ConvertedImageEntry[] = [];
     const newDescriptions: ImageDescription[] = [];
 
     try {
@@ -538,20 +641,25 @@ function App() {
         // Convertir imagen
         const convertedBlob = await convertSingleImageToBlob(image, settings);
         const filename = generateFileName(image.name, settings, i + 1);
-        newConvertedImages.push({ blob: convertedBlob, filename });
+        newConvertedImages.push({ blob: convertedBlob, filename, imageId: image.id, originalSize: image.size, convertedSize: convertedBlob.size });
 
         // Generar descripción si ChatGPT está habilitado
         if (chatGPTSettings.enabled && chatGPTSettings.apiKey && chatGPTSettings.apiKey.trim()) {
           try {
-            const chatGPTService = new ChatGPTService(chatGPTSettings);
+            const chatGPTService = new ChatGPTService(chatGPTSettings, aiProviders);
+            const activeModeKey = activeContentMode.id === 'custom' ? activeContentMode.label : activeContentMode.id;
+            const aiContext = getActiveContext(activeContentMode.id, perModeContext, settings.productDescription);
             const response = await chatGPTService.generateImageDescription(
-              image, 
-              settings.productDescription, 
+              image,
+              aiContext,
               settings.imageNamePrefix,
               promptSettings,
-              filename
+              filename,
+              activeContentMode,
+              modePrompts[activeModeKey],
+              modeModels[activeContentMode.id]
             );
-            
+
             newDescriptions.push({
               id: image.id,
               imageName: image.name,
@@ -562,7 +670,10 @@ function App() {
               description: response.description,
               caption: response.caption,
               altText: response.altText,
-              fullResponse: response.fullResponse
+              fullResponse: response.fullResponse,
+              fields: response.fields,
+              fieldLabels: response.fieldLabels,
+              contentMode: activeContentMode.id,
             });
             
             addNotification({
@@ -740,14 +851,18 @@ function App() {
           // Generar nombre de archivo para la descripción
           const filename = generateFileName(image.name, settings, i + 1);
           
+          const activeModeKeyGen = activeContentMode.id === 'custom' ? activeContentMode.label : activeContentMode.id;
+          const aiContextGen = getActiveContext(activeContentMode.id, perModeContext, settings.productDescription);
           const response = await chatGPTService.generateImageDescription(
-            image, 
-            settings.productDescription, 
+            image,
+            aiContextGen,
             settings.imageNamePrefix,
             promptSettings,
-            filename
+            filename,
+            activeContentMode,
+            modePrompts[activeModeKeyGen]
           );
-          
+
           newDescriptions.push({
             id: image.id,
             imageName: image.name,
@@ -758,7 +873,10 @@ function App() {
             description: response.description,
             caption: response.caption,
             altText: response.altText,
-            fullResponse: response.fullResponse
+            fullResponse: response.fullResponse,
+            fields: response.fields,
+            fieldLabels: response.fieldLabels,
+            contentMode: activeContentMode.id,
           });
 
           addNotification({
@@ -837,25 +955,7 @@ function App() {
       const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
       const filename = `descripciones-imagenes-${timestamp}.txt`;
       
-      let content = '';
-
-      imageDescriptions.forEach((desc, index) => {
-        // Si hay respuesta completa de ChatGPT, modificarla para incluir el nuevo nombre
-        if (desc.fullResponse) {
-          content += addNewFileNameToResponse(desc.fullResponse, desc.newFileName) + '\n';
-        } else {
-          // Fallback al formato anterior si no hay respuesta completa
-          content += `${'='.repeat(80)}\n`;
-          content += `Archivo: ${desc.file || desc.originalFilename}\n`;
-          content += `Nuevo nombre: ${desc.newFileName}\n`;
-          content += `Texto alternativo: ${desc.altText}\n`;
-          content += `Título: ${desc.title}\n`;
-          content += `Leyenda: ${desc.caption}\n`;
-          content += `Descripción: ${desc.description}\n`;
-          content += `${'='.repeat(80)}\n`;
-          content += `\n`;
-        }
-      });
+      const content = generateMetadataFile(imageDescriptions);
 
       const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
@@ -928,27 +1028,30 @@ function App() {
   }, [convertedImages, settings, addNotification]);
 
   // Función para generar archivo de metadatos
-  const generateMetadataFile = (descriptions: ImageDescription[], settings: ConversionSettings): string => {
+  const generateMetadataFile = (descriptions: ImageDescription[]): string => {
     let content = '';
 
     descriptions.forEach((desc, index) => {
-      // Si hay respuesta completa de ChatGPT, modificarla para incluir el nuevo nombre
-      if (desc.fullResponse) {
-        content += addNewFileNameToResponse(desc.fullResponse, desc.newFileName) + '\n';
+      const originalFilename = desc.file || desc.originalFilename || `imagen_${index + 1}`;
+      content += `${'='.repeat(80)}\n`;
+      content += `Archivo: ${originalFilename}\n`;
+      content += `Nuevo nombre: ${desc.newFileName}\n`;
+
+      if (desc.fields && Object.keys(desc.fields).length > 0) {
+        // Modo dinámico: usar etiquetas reales de los campos
+        Object.entries(desc.fields).forEach(([key, value]) => {
+          const label = desc.fieldLabels?.[key] ?? key;
+          content += `${label}: ${value}\n`;
+        });
       } else {
-        // Fallback al formato anterior si no hay respuesta completa
-        const originalFilename = desc.file || desc.originalFilename || `imagen_${index + 1}`;
-        
-        content += `${'='.repeat(80)}\n`;
-        content += `Archivo: ${originalFilename}\n`;
-        content += `Nuevo nombre: ${desc.newFileName}\n`;
+        // Modo ecommerce legacy
         content += `Texto alternativo: ${desc.altText}\n`;
         content += `Título: ${desc.title}\n`;
         content += `Leyenda: ${desc.caption}\n`;
         content += `Descripción: ${desc.description}\n`;
-        content += `${'='.repeat(80)}\n`;
-        content += `\n`;
       }
+
+      content += `${'='.repeat(80)}\n\n`;
     });
 
     return content;
@@ -966,7 +1069,7 @@ function App() {
 
     // Agregar archivo de metadatos si hay descripciones
     if (imageDescriptions.length > 0) {
-      const metadataContent = generateMetadataFile(imageDescriptions, settings);
+      const metadataContent = generateMetadataFile(imageDescriptions);
       const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
       const metadataFilename = `metadatos-${settings.sdkSuffix}-${timestamp}.txt`;
       zip.file(metadataFilename, metadataContent);
@@ -1005,6 +1108,10 @@ function App() {
       <ChatGPTConfig
         settings={chatGPTSettings}
         onSettingsChange={handleChatGPTSettingsChange}
+        aiProviders={aiProviders}
+        onProvidersChange={handleAiProvidersChange}
+        modeModels={modeModels}
+        onModeModelsChange={handleModeModelsChange}
         onClearSettings={clearChatGPTSettings}
         onBack={() => setCurrentPage('main')}
       />
@@ -1015,7 +1122,11 @@ function App() {
     return (
       <PromptConfig
         settings={promptSettings}
+        modePrompts={modePrompts}
+        customModes={customModes}
+        activeMode={activeContentMode}
         onSettingsChange={handlePromptSettingsChange}
+        onModePromptsChange={handleModePromptsChange}
         onClearSettings={clearPromptSettings}
         onBack={() => setCurrentPage('main')}
       />
@@ -1057,6 +1168,29 @@ function App() {
     );
   }
 
+  if (currentPage === 'content-mode-selector') {
+    return (
+      <ContentModeSelector
+        activeMode={activeContentMode}
+        customModes={customModes}
+        onModeChange={handleContentModeChange}
+        onCustomModesChange={handleCustomModesChange}
+        onBack={() => setCurrentPage('main')}
+      />
+    );
+  }
+
+  if (currentPage === 'brands-panel') {
+    return (
+      <BrandsPanel
+        brands={brands}
+        onBrandsChange={handleBrandsChange}
+        onBack={() => setCurrentPage('main')}
+        onSuggestKeywords={handleSuggestKeywords}
+      />
+    );
+  }
+
   // Mostrar pantalla de carga mientras se inicializa
   if (isLoading || authState.isLoading) {
     return (
@@ -1076,13 +1210,14 @@ function App() {
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
-      <Header 
+      <Header
         onChatGPTConfig={() => setCurrentPage('chatgpt-config')}
         onPromptConfig={() => setCurrentPage('prompt-config')}
         onCurrencyAPIConfig={() => setCurrentPage('currency-api-config')}
         onClearConfig={handleClearConfig}
         onUsageHistory={() => setCurrentPage('usage-history')}
         onUserManagement={() => setCurrentPage('user-management')}
+        onBrandsPanel={() => setCurrentPage('brands-panel')}
         onProfileConfig={() => setCurrentPage('profile-config')}
         onLogout={handleLogout}
         currentUser={authState.currentUser}
@@ -1090,9 +1225,12 @@ function App() {
       
       
       <div className="flex-1 flex overflow-hidden">
-        <Sidebar 
+        <Sidebar
           settings={settings}
+          activeMode={activeContentMode}
+          modeContext={perModeContext[activeContentMode.id] ?? {}}
           onSettingsChange={handleConversionSettingsChange}
+          onModeContextChange={handleModeContextChange}
           onConvert={handleConvert}
           onConvertOnly={handleConvertOnly}
           onDownloadConverted={handleDownloadConverted}
@@ -1105,19 +1243,41 @@ function App() {
           convertedCount={convertedImages.length}
           descriptionsCount={imageDescriptions.length}
           chatGPTEnabled={chatGPTSettings.enabled}
+          brands={brands}
+          onManageBrands={() => setCurrentPage('brands-panel')}
         />
-        
+
         <main className="flex-1 flex flex-col overflow-hidden">
+          {/* Barra de modo activo */}
+          <div className="flex-shrink-0 bg-white border-b border-gray-100 px-4 py-2 flex items-center justify-between">
+            <div className="flex items-center space-x-2 text-sm text-gray-600">
+              <span className="text-gray-400">Modo:</span>
+              <span className="font-medium text-gray-800">{activeContentMode.label}</span>
+              {activeContentMode.fields.length > 0 && (
+                <span className="text-gray-400">
+                  ({activeContentMode.fields.filter(f => f.enabled).map(f => f.label).join(', ')})
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => setCurrentPage('content-mode-selector')}
+              className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Cambiar modo
+            </button>
+          </div>
+
           {images.length === 0 ? (
             <DropZone onFilesSelected={handleFilesSelected} />
           ) : (
-            <ImageGrid 
+            <ImageGrid
               images={images}
               onRemoveImage={handleRemoveImage}
               onFilesSelected={handleFilesSelected}
               settings={settings}
               onNotification={addNotification}
-          imageDescriptions={imageDescriptions}
+              imageDescriptions={imageDescriptions}
+              convertedImages={convertedImages}
             />
           )}
         </main>
