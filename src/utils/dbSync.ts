@@ -1,20 +1,33 @@
-// Utilidad para sincronizar datos entre el archivo JSON y localStorage
-
 export class DatabaseSync {
-  private static readonly DB_PATH = './src/db/db.json';
   private static readonly LOCAL_STORAGE_KEY = 'image-converter-db';
+  private static readonly API_URL = '/api/db';
 
-  // Cargar datos desde el archivo JSON
-  static async loadFromFile(): Promise<any> {
+  // Cargar datos desde el servidor (API REST)
+  static async loadFromServer(): Promise<any> {
     try {
-      const response = await fetch(this.DB_PATH);
+      const response = await fetch(this.API_URL, { cache: 'no-store' });
       if (response.ok) {
         return await response.json();
       }
-    } catch (error) {
-      console.warn('No se pudo cargar desde el archivo JSON:', error);
+    } catch {
+      // Servidor no disponible (modo dev con Vite solo)
     }
     return null;
+  }
+
+  // Guardar datos en el servidor
+  static async saveToServer(data: any): Promise<boolean> {
+    try {
+      const response = await fetch(this.API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      return response.ok;
+    } catch {
+      // Servidor no disponible
+      return false;
+    }
   }
 
   // Cargar datos desde localStorage
@@ -37,54 +50,39 @@ export class DatabaseSync {
     }
   }
 
-  // Sincronizar datos (priorizar archivo JSON si existe)
+  // Sincronizar datos: prioriza servidor, usa localStorage como respaldo
   static async syncData(): Promise<any> {
-    try {
-      const fileData = await this.loadFromFile();
-      const localData = this.loadFromLocalStorage();
+    const serverData = await this.loadFromServer();
+    const localData = this.loadFromLocalStorage();
 
-      if (fileData && localData) {
-        // Comparar timestamps para determinar cuál es más reciente
-        const fileTime = new Date(fileData.lastUpdated).getTime();
-        const localTime = new Date(localData.lastUpdated).getTime();
-        
-        if (fileTime > localTime) {
-          // El archivo es más reciente, actualizar localStorage
-          this.saveToLocalStorage(fileData);
-          return fileData;
-        } else {
-          // localStorage es más reciente, mantenerlo
-          return localData;
-        }
-      } else if (fileData) {
-        // Solo existe el archivo, sincronizar con localStorage
-        this.saveToLocalStorage(fileData);
-        return fileData;
-      } else if (localData) {
-        // Solo existe localStorage, mantenerlo
-        return localData;
-      } else {
-        // No existe ninguno, crear estructura por defecto
-        const defaultData = {
-          userSettings: {},
-          lastUpdated: new Date().toISOString()
-        };
-        this.saveToLocalStorage(defaultData);
-        return defaultData;
-      }
-    } catch (error) {
-      console.error('Error in syncData:', error);
-      // En caso de error, crear estructura por defecto
-      const defaultData = {
-        userSettings: {},
-        lastUpdated: new Date().toISOString()
-      };
-      this.saveToLocalStorage(defaultData);
-      return defaultData;
+    if (serverData && localData) {
+      const serverTime = new Date(serverData.lastUpdated ?? 0).getTime();
+      const localTime = new Date(localData.lastUpdated ?? 0).getTime();
+      // Usar el más reciente
+      const winner = serverTime >= localTime ? serverData : localData;
+      // Mantener localStorage sincronizado con el ganador
+      this.saveToLocalStorage(winner);
+      return winner;
     }
+
+    if (serverData) {
+      this.saveToLocalStorage(serverData);
+      return serverData;
+    }
+
+    if (localData) {
+      return localData;
+    }
+
+    const defaultData = {
+      userSettings: {},
+      lastUpdated: new Date().toISOString(),
+    };
+    this.saveToLocalStorage(defaultData);
+    return defaultData;
   }
 
-  // Exportar datos actuales a un archivo (para desarrollo)
+  // Exportar datos actuales a un archivo (descarga en el navegador)
   static exportToFile(): void {
     const data = this.loadFromLocalStorage();
     if (data) {

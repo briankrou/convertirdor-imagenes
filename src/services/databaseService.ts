@@ -51,11 +51,13 @@ class DatabaseService {
 
   private async saveData(): Promise<void> {
     if (!this.data) return;
-    
+
     this.data.lastUpdated = new Date().toISOString();
-    
-    // Guardar en localStorage usando la utilidad de sincronización
+
+    // Guardar en localStorage como respaldo inmediato
     DatabaseSync.saveToLocalStorage(this.data);
+    // Guardar en el servidor para persistencia real entre sesiones y dispositivos
+    await DatabaseSync.saveToServer(this.data);
   }
 
   private getDefaultUserSettings(username: string): UserSettings {

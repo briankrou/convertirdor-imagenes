@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node scripts/start-server.js",
+    "start": "node simple-server.js",
     "dev": "node scripts/dev-server.js",
     "build": "vite build",
     "lint": "eslint .",
@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "dotenv": "^17.2.3",
+    "express": "^5.2.1",
     "jszip": "^3.10.1",
     "lowdb": "^7.0.1",
     "lucide-react": "^0.344.0",

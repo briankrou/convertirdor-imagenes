@@ -7,8 +7,8 @@ WORKDIR /app
 # Copiar archivos de dependencias
 COPY package*.json ./
 
-# Instalar dependencias
-RUN npm ci --only=production
+# Instalar todas las dependencias (necesitamos vite para el build)
+RUN npm ci
 
 # Copiar código fuente
 COPY . .
@@ -24,5 +24,5 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
 
-# Comando de inicio
-CMD ["npm", "start"]
+# Usar simple-server.js que incluye la API REST para persistencia de datos
+CMD ["node", "simple-server.js"]
