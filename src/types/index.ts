@@ -51,7 +51,11 @@ export interface Brand {
   name: string;
   websiteUrl?: string;
   keywords?: string[];
+  hashtags?: string[];
   tone?: string;
+  industry?: string;
+  language?: string;
+  socialHandle?: string;
   logoUrl?: string;
   description?: string;
   createdAt: string;

@@ -3,7 +3,7 @@ import {
   Download, Trash2, Sliders, Tag, Hash, Brain, FileText,
   Maximize2, Minimize2, Package, ShoppingBag, Briefcase,
   Image, Share2, Archive, Settings, Users, Globe, Building2,
-  Layers, AtSign, Barcode, Plus
+  Layers, AtSign, Barcode, Plus, ChevronsRight
 } from 'lucide-react';
 import { ConversionSettings, ContentModeConfig, Brand } from '../types';
 
@@ -15,6 +15,7 @@ interface SidebarProps {
   onSettingsChange: (settings: ConversionSettings) => void;
   onModeContextChange: (ctx: Record<string, string>) => void;
   onManageBrands?: () => void;
+  onApplyBrandToAllModes?: (brandId: string) => void;
   onConvert: () => void;
   onConvertOnly: () => void;
   onDownloadConverted?: () => void;
@@ -47,8 +48,13 @@ const inputCls = 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-
 const selectCls = inputCls;
 const textareaCls = `${inputCls} resize-none`;
 
+const BrandDot: React.FC<{ ctx: Record<string, string>; field: string }> = ({ ctx, field }) =>
+  (ctx['_brandFilledFields'] ?? '').split(',').includes(field)
+    ? <span className="ml-1.5 px-1 py-0.5 rounded text-xs bg-indigo-50 text-indigo-400 font-normal">· marca</span>
+    : null;
+
 const WebsiteField: React.FC<{ ctx: Record<string, string>; onChange: (c: Record<string, string>) => void }> = ({ ctx, onChange }) => (
-  <Field label={<><Globe className="w-3.5 h-3.5 mr-1.5" />Página web de la marca</>} hint="La IA la usará como referencia de la marca">
+  <Field label={<><Globe className="w-3.5 h-3.5 mr-1.5" />Página web de la marca<BrandDot ctx={ctx} field="websiteUrl" /></>} hint="La IA la usará como referencia de la marca">
     <input
       type="url"
       value={ctx.websiteUrl ?? ''}
@@ -60,7 +66,7 @@ const WebsiteField: React.FC<{ ctx: Record<string, string>; onChange: (c: Record
 );
 
 const KeywordField: React.FC<{ ctx: Record<string, string>; onChange: (c: Record<string, string>) => void }> = ({ ctx, onChange }) => (
-  <Field label={<><Hash className="w-3.5 h-3.5 mr-1.5" />Palabra clave principal</>} hint="La IA la priorizará en títulos y descripciones">
+  <Field label={<><Hash className="w-3.5 h-3.5 mr-1.5" />Palabra clave principal<BrandDot ctx={ctx} field="keyword" /></>} hint="La IA la priorizará en títulos y descripciones">
     <input
       type="text"
       value={ctx.keyword ?? ''}
@@ -194,36 +200,59 @@ const ResizeSection: React.FC<{
 
 // ─── Brand Selector ───────────────────────────────────────────────────────────
 
+const BRAND_FILLED_KEY = '_brandFilledFields';
+
+const buildBrandContext = (brand: Brand, modeId: string, base: Record<string, string>): Record<string, string> => {
+  const ctx = { ...base, selectedBrandId: brand.id };
+  const filled: string[] = [];
+  const set = (k: string, v: string) => { ctx[k] = v; filled.push(k); };
+
+  if (brand.websiteUrl)       set('websiteUrl',        brand.websiteUrl);
+  if (brand.keywords?.length) set('keyword',           brand.keywords[0]);
+  if (brand.tone)             set('brandTone',         brand.tone);
+  if (brand.description)      set('brandDescription',  brand.description);
+  if (brand.industry)         set('brandIndustry',     brand.industry);
+  if (brand.language)         set('brandLanguage',     brand.language);
+  if (brand.hashtags?.length) set('brandHashtags',     brand.hashtags.join(' '));
+  if (brand.socialHandle)     set('brandSocialHandle', brand.socialHandle);
+  if (brand.name) {
+    if (modeId === 'services')     set('companyName', brand.name);
+    if (modeId === 'social_media') set('brand',       brand.name);
+    if (modeId === 'catalog')      set('supplier',    brand.name);
+  }
+  ctx[BRAND_FILLED_KEY] = filled.join(',');
+  return ctx;
+};
+
+const clearBrandContext = (ctx: Record<string, string>): Record<string, string> => {
+  const updated = { ...ctx };
+  const filled = (ctx[BRAND_FILLED_KEY] ?? '').split(',').filter(Boolean);
+  for (const f of filled) delete updated[f];
+  delete updated.selectedBrandId;
+  delete updated[BRAND_FILLED_KEY];
+  return updated;
+};
+
+const isBrandField = (ctx: Record<string, string>, field: string) =>
+  (ctx[BRAND_FILLED_KEY] ?? '').split(',').includes(field);
+
 interface BrandSelectorProps {
   brands: Brand[];
   ctx: Record<string, string>;
   onChange: (c: Record<string, string>) => void;
   modeId: string;
   onManage: () => void;
+  onApplyToAll?: (brandId: string) => void;
 }
 
-const BrandSelector: React.FC<BrandSelectorProps> = ({ brands, ctx, onChange, modeId, onManage }) => {
+const BrandSelector: React.FC<BrandSelectorProps> = ({ brands, ctx, onChange, modeId, onManage, onApplyToAll }) => {
   const selectedBrand = brands.find(b => b.id === ctx.selectedBrandId);
 
   const applyBrand = (brandId: string) => {
-    if (!brandId) {
-      const updated = { ...ctx };
-      delete updated.selectedBrandId;
-      onChange(updated);
-      return;
-    }
+    if (!brandId) { onChange(clearBrandContext(ctx)); return; }
     const brand = brands.find(b => b.id === brandId);
     if (!brand) return;
-    const updates: Record<string, string> = { ...ctx, selectedBrandId: brandId };
-    if (brand.websiteUrl) updates.websiteUrl = brand.websiteUrl;
-    if (brand.keywords?.length) updates.keyword = brand.keywords[0];
-    if (brand.tone) updates.brandTone = brand.tone; else delete updates.brandTone;
-    if (brand.name) {
-      if (modeId === 'services')     updates.companyName = brand.name;
-      if (modeId === 'social_media') updates.brand       = brand.name;
-      if (modeId === 'catalog')      updates.supplier    = brand.name;
-    }
-    onChange(updates);
+    onChange(buildBrandContext(brand, modeId, ctx));
   };
 
   return (
@@ -242,24 +271,33 @@ const BrandSelector: React.FC<BrandSelectorProps> = ({ brands, ctx, onChange, mo
           <option value="">— Sin marca —</option>
           {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
         </select>
-        <button
-          onClick={onManage}
-          className="text-xs text-indigo-500 hover:text-indigo-700 transition-colors whitespace-nowrap"
-          title="Gestionar marcas"
-        >
+        <button onClick={onManage} className="text-xs text-indigo-500 hover:text-indigo-700 transition-colors whitespace-nowrap" title="Gestionar marcas">
           Gestionar
         </button>
       </div>
 
-      {/* Tone badge */}
-      {selectedBrand?.tone && (
-        <div className="px-2.5 py-1.5 bg-indigo-50 border border-indigo-100 rounded-lg flex items-center gap-1.5">
-          <span className="text-xs text-indigo-400">Tono:</span>
-          <span className="text-xs font-medium text-indigo-700 capitalize">{selectedBrand.tone}</span>
+      {/* Apply to all modes */}
+      {selectedBrand && onApplyToAll && (
+        <button
+          onClick={() => onApplyToAll(selectedBrand.id)}
+          className="w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 text-xs text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 border border-indigo-100 rounded-lg transition-colors"
+          title="Aplicar esta marca a todos los modos"
+        >
+          <ChevronsRight className="w-3.5 h-3.5" />
+          Aplicar a todos los modos
+        </button>
+      )}
+
+      {/* Tone + industry summary */}
+      {selectedBrand && (selectedBrand.tone || selectedBrand.industry || selectedBrand.language) && (
+        <div className="px-2.5 py-1.5 bg-indigo-50 border border-indigo-100 rounded-lg flex flex-wrap gap-x-3 gap-y-0.5">
+          {selectedBrand.tone     && <span className="text-xs text-indigo-600"><span className="text-indigo-400">Tono:</span> {selectedBrand.tone}</span>}
+          {selectedBrand.industry && <span className="text-xs text-indigo-600"><span className="text-indigo-400">Industria:</span> {selectedBrand.industry}</span>}
+          {selectedBrand.language && <span className="text-xs text-indigo-600"><span className="text-indigo-400">Idioma:</span> {selectedBrand.language}</span>}
         </div>
       )}
 
-      {/* Keyword picker — shown when selected brand has keywords */}
+      {/* Keyword picker */}
       {selectedBrand && (selectedBrand.keywords?.length ?? 0) > 0 && (
         <div className="px-2.5 py-2 bg-indigo-50 border border-indigo-100 rounded-lg">
           <p className="text-xs text-indigo-400 mb-1.5 font-medium">Palabra clave activa</p>
@@ -269,9 +307,7 @@ const BrandSelector: React.FC<BrandSelectorProps> = ({ brands, ctx, onChange, mo
                 key={kw}
                 onClick={() => onChange({ ...ctx, keyword: kw })}
                 className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors ${
-                  ctx.keyword === kw
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-100'
+                  ctx.keyword === kw ? 'bg-indigo-600 text-white' : 'bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-100'
                 }`}
               >
                 {kw}
@@ -443,6 +479,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSettingsChange,
   onModeContextChange,
   onManageBrands,
+  onApplyBrandToAllModes,
   onConvert,
   onConvertOnly,
   onDownloadConverted,
@@ -495,6 +532,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onChange={onModeContextChange}
               modeId={activeMode.id}
               onManage={onManageBrands ?? (() => {})}
+              onApplyToAll={onApplyBrandToAllModes}
             />
           ) : (
             onManageBrands && (

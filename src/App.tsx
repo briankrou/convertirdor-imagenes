@@ -223,6 +223,38 @@ function App() {
     }
   }, [authState.currentUser]);
 
+  const handleApplyBrandToAllModes = useCallback(async (brandId: string) => {
+    const brand = brands.find(b => b.id === brandId);
+    if (!brand) return;
+    const STANDARD_MODES = ['ecommerce', 'services', 'general', 'social_media', 'catalog'] as const;
+    const updated = { ...perModeContext };
+    for (const modeId of STANDARD_MODES) {
+      const base = updated[modeId] ?? {};
+      const ctx: Record<string, string> = { ...base, selectedBrandId: brand.id };
+      const filled: string[] = [];
+      const set = (k: string, v: string) => { ctx[k] = v; filled.push(k); };
+      if (brand.websiteUrl)       set('websiteUrl',        brand.websiteUrl);
+      if (brand.keywords?.length) set('keyword',           brand.keywords[0]);
+      if (brand.tone)             set('brandTone',         brand.tone);
+      if (brand.description)      set('brandDescription',  brand.description);
+      if (brand.industry)         set('brandIndustry',     brand.industry);
+      if (brand.language)         set('brandLanguage',     brand.language);
+      if (brand.hashtags?.length) set('brandHashtags',     brand.hashtags.join(' '));
+      if (brand.socialHandle)     set('brandSocialHandle', brand.socialHandle);
+      if (brand.name) {
+        if (modeId === 'services')     set('companyName', brand.name);
+        if (modeId === 'social_media') set('brand',       brand.name);
+        if (modeId === 'catalog')      set('supplier',    brand.name);
+      }
+      ctx['_brandFilledFields'] = filled.join(',');
+      updated[modeId] = ctx;
+    }
+    setPerModeContext(updated);
+    if (authState.currentUser) {
+      await databaseService.saveUserPerModeContext(authState.currentUser.username, updated);
+    }
+  }, [brands, perModeContext, authState.currentUser]);
+
   const handleSuggestKeywords = useCallback(async (name: string, description: string): Promise<string[]> => {
     const apiKey = chatGPTSettings.apiKey?.trim();
     if (!apiKey) return [];
@@ -1245,6 +1277,7 @@ function App() {
           chatGPTEnabled={chatGPTSettings.enabled}
           brands={brands}
           onManageBrands={() => setCurrentPage('brands-panel')}
+          onApplyBrandToAllModes={handleApplyBrandToAllModes}
         />
 
         <main className="flex-1 flex flex-col overflow-hidden">

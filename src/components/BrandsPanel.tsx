@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { ArrowLeft, Plus, Edit2, Trash2, Globe, Hash, Building2, FileText, X, Check, Search, Upload, Download, Sparkles, Mic } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, Globe, Hash, Building2, FileText, X, Check, Search, Upload, Download, Sparkles, Mic, Tag, AtSign, Languages } from 'lucide-react';
 import { Brand } from '../types';
 import { Popup } from './Popup';
 import { usePopup } from '../hooks/usePopup';
@@ -15,7 +15,11 @@ type FormData = {
   name: string;
   websiteUrl: string;
   keywords: string[];
+  hashtags: string[];
   tone: string;
+  industry: string;
+  language: string;
+  socialHandle: string;
   logoUrl: string;
   description: string;
 };
@@ -28,7 +32,12 @@ const TONES = [
   { value: 'persuasivo',  label: 'Persuasivo' },
 ];
 
-const emptyForm = (): FormData => ({ name: '', websiteUrl: '', keywords: [], tone: '', logoUrl: '', description: '' });
+const LANGUAGES = ['Español', 'Inglés', 'Portugués', 'Francés', 'Alemán', 'Italiano'];
+
+const emptyForm = (): FormData => ({
+  name: '', websiteUrl: '', keywords: [], hashtags: [],
+  tone: '', industry: '', language: '', socialHandle: '', logoUrl: '', description: '',
+});
 
 const initials = (name: string) => name.trim().slice(0, 2).toUpperCase();
 
@@ -124,7 +133,11 @@ export const BrandsPanel: React.FC<BrandsPanelProps> = ({ brands, onBrandsChange
       name: brand.name,
       websiteUrl: brand.websiteUrl ?? '',
       keywords: brand.keywords ?? [],
+      hashtags: brand.hashtags ?? [],
       tone: brand.tone ?? '',
+      industry: brand.industry ?? '',
+      language: brand.language ?? '',
+      socialHandle: brand.socialHandle ?? '',
       logoUrl: brand.logoUrl ?? '',
       description: brand.description ?? '',
     });
@@ -141,7 +154,11 @@ export const BrandsPanel: React.FC<BrandsPanelProps> = ({ brands, onBrandsChange
       name: form.name.trim(),
       websiteUrl: form.websiteUrl.trim() || undefined,
       keywords: form.keywords.length > 0 ? form.keywords : undefined,
+      hashtags: form.hashtags.length > 0 ? form.hashtags : undefined,
       tone: form.tone || undefined,
+      industry: form.industry.trim() || undefined,
+      language: form.language || undefined,
+      socialHandle: form.socialHandle.trim() || undefined,
       logoUrl: form.logoUrl.trim() || undefined,
       description: form.description.trim() || undefined,
       createdAt: editingId
@@ -325,6 +342,49 @@ export const BrandsPanel: React.FC<BrandsPanelProps> = ({ brands, onBrandsChange
                   </select>
                 </div>
 
+                {/* Industry */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1">
+                    <Tag className="w-3.5 h-3.5" /> Industria / Categoría
+                  </label>
+                  <input
+                    type="text"
+                    value={form.industry}
+                    onChange={e => setForm(f => ({ ...f, industry: e.target.value }))}
+                    placeholder="Moda, Tecnología, Alimentos…"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                {/* Language */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1">
+                    <Languages className="w-3.5 h-3.5" /> Idioma del contenido
+                  </label>
+                  <select
+                    value={form.language}
+                    onChange={e => setForm(f => ({ ...f, language: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                  >
+                    <option value="">— Sin definir —</option>
+                    {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
+                  </select>
+                </div>
+
+                {/* Social handle */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1">
+                    <AtSign className="w-3.5 h-3.5" /> Handle / Perfil social
+                  </label>
+                  <input
+                    type="text"
+                    value={form.socialHandle}
+                    onChange={e => setForm(f => ({ ...f, socialHandle: e.target.value }))}
+                    placeholder="@mimarca"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
                 {/* Logo */}
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Logo de la marca</label>
@@ -372,6 +432,18 @@ export const BrandsPanel: React.FC<BrandsPanelProps> = ({ brands, onBrandsChange
                   <KeywordsInput
                     keywords={form.keywords}
                     onChange={kws => setForm(f => ({ ...f, keywords: kws }))}
+                  />
+                </div>
+
+                {/* Hashtags */}
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-1">
+                    <Hash className="w-3.5 h-3.5 text-gray-400" /> Hashtags por defecto
+                    <span className="text-xs text-gray-400 font-normal ml-1">— Enter o coma para agregar</span>
+                  </label>
+                  <KeywordsInput
+                    keywords={form.hashtags}
+                    onChange={kws => setForm(f => ({ ...f, hashtags: kws }))}
                   />
                 </div>
 
@@ -464,18 +536,27 @@ export const BrandsPanel: React.FC<BrandsPanelProps> = ({ brands, onBrandsChange
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <p className="font-semibold text-gray-900 text-sm truncate">{brand.name}</p>
                       {brand.tone && (
-                        <span className="px-1.5 py-0.5 bg-violet-50 text-violet-600 rounded text-xs font-medium flex-shrink-0">
-                          {brand.tone}
-                        </span>
+                        <span className="px-1.5 py-0.5 bg-violet-50 text-violet-600 rounded text-xs font-medium flex-shrink-0">{brand.tone}</span>
+                      )}
+                      {brand.industry && (
+                        <span className="px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded text-xs font-medium flex-shrink-0">{brand.industry}</span>
+                      )}
+                      {brand.language && (
+                        <span className="px-1.5 py-0.5 bg-teal-50 text-teal-600 rounded text-xs font-medium flex-shrink-0">{brand.language}</span>
                       )}
                     </div>
                     {brand.websiteUrl && (
                       <p className="text-xs text-gray-500 truncate flex items-center gap-1 mt-0.5">
                         <Globe className="w-3 h-3 flex-shrink-0 text-gray-400" />
                         {brand.websiteUrl.replace(/^https?:\/\//, '')}
+                      </p>
+                    )}
+                    {brand.socialHandle && (
+                      <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                        <AtSign className="w-3 h-3 flex-shrink-0 text-gray-400" />{brand.socialHandle}
                       </p>
                     )}
                     {brand.keywords && brand.keywords.length > 0 && (

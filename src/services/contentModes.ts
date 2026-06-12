@@ -103,10 +103,12 @@ export function buildContextString(modeId: ContentMode, ctx: Record<string, stri
       break;
 
     case 'social_media':
-      if (ctx.platform)         p.push(`Plataforma: ${ctx.platform}`);
-      if (ctx.tone)             p.push(`Tono: ${ctx.tone}`);
-      if (ctx.hashtagLanguage)  p.push(`Idioma de hashtags: ${ctx.hashtagLanguage}`);
-      if (ctx.brand)            p.push(`Marca/Perfil: ${ctx.brand}`);
+      if (ctx.platform)           p.push(`Plataforma: ${ctx.platform}`);
+      if (ctx.tone)               p.push(`Tono: ${ctx.tone}`);
+      if (ctx.hashtagLanguage)    p.push(`Idioma de hashtags: ${ctx.hashtagLanguage}`);
+      if (ctx.brand)              p.push(`Marca/Perfil: ${ctx.brand}`);
+      if (ctx.brandSocialHandle)  p.push(`Handle de la marca: ${ctx.brandSocialHandle}`);
+      if (ctx.brandHashtags)      p.push(`Hashtags de la marca: ${ctx.brandHashtags}`);
       break;
 
     case 'catalog':
@@ -128,9 +130,12 @@ export function buildContextString(modeId: ContentMode, ctx: Record<string, stri
         .join('. ');
   }
 
-  if (ctx.brandTone?.trim())  p.push(`Tono de voz de la marca: ${ctx.brandTone.trim()}`);
-  if (ctx.keyword?.trim())    p.push(`Palabra clave principal: ${ctx.keyword.trim()}`);
-  if (ctx.websiteUrl?.trim()) p.push(`Sitio web de la marca: ${ctx.websiteUrl.trim()}`);
+  if (ctx.brandDescription?.trim()) p.push(`Descripción de la marca: ${ctx.brandDescription.trim()}`);
+  if (ctx.brandIndustry?.trim())    p.push(`Industria: ${ctx.brandIndustry.trim()}`);
+  if (ctx.brandTone?.trim())        p.push(`Tono de voz de la marca: ${ctx.brandTone.trim()}`);
+  if (ctx.brandLanguage?.trim())    p.push(`Idioma del contenido: ${ctx.brandLanguage.trim()}`);
+  if (ctx.keyword?.trim())          p.push(`Palabra clave principal: ${ctx.keyword.trim()}`);
+  if (ctx.websiteUrl?.trim())       p.push(`Sitio web de la marca: ${ctx.websiteUrl.trim()}`);
 
   return p.join('. ');
 }
