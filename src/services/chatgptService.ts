@@ -1,6 +1,6 @@
 import { ImageData, UsageRecord, UserChatGPTSettings, UserPromptSettings, ContentModeConfig, ModePromptConfig, AIProvider, AIProviderConfig, ModeModelConfig } from '../types';
 import { authService } from './authService';
-import { buildPrompt } from './contentModes';
+import { buildPrompt, getEffectiveFields } from './contentModes';
 import { getPricing } from './aiProviders';
 
 export interface ChatGPTResponse {
@@ -252,7 +252,8 @@ export class ChatGPTService {
     newFileName?: string,
     contentMode?: ContentModeConfig,
     modePromptConfig?: ModePromptConfig,
-    modeModel?: ModeModelConfig
+    modeModel?: ModeModelConfig,
+    rawContext?: Record<string, string>
   ): Promise<ChatGPTResponse> {
     const provider: AIProvider = modeModel?.provider ?? 'openai';
     const model: string = modeModel?.model ?? this.settings.model;
@@ -279,7 +280,7 @@ export class ChatGPTService {
 
       let prompt: string;
       if (useJsonMode) {
-        prompt = buildPrompt(contentMode!, imageData.name, productDescription, namePrefix, modePromptConfig);
+        prompt = buildPrompt(contentMode!, imageData.name, productDescription, namePrefix, modePromptConfig, rawContext);
       } else {
         const prompts = promptSettings?.useCustomPrompts ? promptSettings : {
           titlePrompt: "Genera un título atractivo y descriptivo para esta imagen (máximo 60 caracteres). El título debe ser claro, conciso y que capture la esencia del producto mostrado.",
@@ -336,7 +337,7 @@ IMPORTANTE:
       if (useJsonMode && contentMode) {
         try {
           const cleanContent = content.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-          return this.parseJsonModeResponse(JSON.parse(cleanContent), contentMode, imageData.name, newFileName);
+          return this.parseJsonModeResponse(JSON.parse(cleanContent), contentMode, imageData.name, newFileName, rawContext);
         } catch {
           return this.parseTextResponse(content, imageData.name, newFileName);
         }
@@ -412,12 +413,16 @@ IMPORTANTE:
     json: Record<string, unknown>,
     config: ContentModeConfig,
     imageName: string,
-    newFileName?: string
+    newFileName?: string,
+    rawContext?: Record<string, string>
   ): ChatGPTResponse {
     const fields: Record<string, string> = {};
     const fieldLabels: Record<string, string> = {};
 
-    config.fields.filter(f => f.enabled).forEach(field => {
+    // Usar solo los campos efectivos para el modo y contexto actual
+    const effectiveFields = getEffectiveFields(config, rawContext);
+
+    effectiveFields.forEach((field: any) => {
       const value = json[field.key];
       if (value !== undefined) {
         fields[field.key] = String(value);
@@ -447,11 +452,11 @@ IMPORTANTE:
     let altText = 'Texto alternativo no disponible';
 
     for (const line of lines) {
-      if (line.includes('Archivo:'))           file = line.replace('Archivo:', '').trim();
+      if (line.includes('Archivo:')) file = line.replace('Archivo:', '').trim();
       else if (line.includes('Texto alternativo:')) altText = line.replace('Texto alternativo:', '').trim();
-      else if (line.includes('Título:'))       title = line.replace('Título:', '').trim();
-      else if (line.includes('Leyenda:'))      caption = line.replace('Leyenda:', '').trim();
-      else if (line.includes('Descripción:'))  description = line.replace('Descripción:', '').trim();
+      else if (line.includes('Título:')) title = line.replace('Título:', '').trim();
+      else if (line.includes('Leyenda:')) caption = line.replace('Leyenda:', '').trim();
+      else if (line.includes('Descripción:')) description = line.replace('Descripción:', '').trim();
     }
 
     return { file, newFileName: newFileName ?? imageName ?? 'Archivo no disponible', title, description, caption, altText, fullResponse: text };

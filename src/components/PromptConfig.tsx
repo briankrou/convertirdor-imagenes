@@ -248,6 +248,98 @@ const ModeTab: React.FC<{
   );
 };
 
+// ─── Sub-pestañas por plataforma (modo Redes Sociales) ───────────────────────
+
+const SOCIAL_PLATFORMS = ['Instagram', 'TikTok', 'LinkedIn', 'Facebook', 'Twitter / X', 'YouTube', 'Pinterest'] as const;
+type SocialPlatform = typeof SOCIAL_PLATFORMS[number];
+
+const PLATFORM_ICON: Record<SocialPlatform, string> = {
+  Instagram: '📸', TikTok: '🎵', LinkedIn: '💼', Facebook: '👥',
+  'Twitter / X': '𝕏', YouTube: '▶️', Pinterest: '📌',
+};
+
+const PLATFORM_DEFAULTS: Record<SocialPlatform, string> = {
+  Instagram:     'Analiza esta imagen para Instagram. Crea contenido visual-first, aspiracional y emotivo. Usa emojis estratégicamente. Incluye hashtags relevantes y un CTA claro. Adapta el tono según si es orgánico o anuncio pagado.',
+  TikTok:        'Analiza esta imagen para TikTok. Crea un gancho potente al inicio (hook). El copy debe ser corto, energético y generar acción inmediata. Usa lenguaje actual y cercano a la audiencia.',
+  LinkedIn:      'Analiza esta imagen para LinkedIn. Crea contenido profesional y de valor. El copy debe ser directo, educativo o inspiracional. Usa pocos emojis. Hashtags profesionales (máx. 5). Enfócate en el insight o aprendizaje.',
+  Facebook:      'Analiza esta imagen para Facebook. Crea contenido conversacional que genere comentarios y shares. Puedes usar un copy más largo. Incluye una pregunta o CTA que invite a la interacción.',
+  'Twitter / X': 'Analiza esta imagen para Twitter/X. El copy debe ser conciso (máx. 280 caracteres). Impactante, directo y si es posible con un dato o ángulo sorprendente.',
+  YouTube:       'Analiza esta imagen para YouTube (thumbnail/banner). Crea un título con keywords SEO, una descripción rica en keywords y una llamada a la suscripción o visualización.',
+  Pinterest:     'Analiza esta imagen para Pinterest. Crea descripciones ricas en palabras clave SEO, aspiracionales y detalladas. Incluye keywords al inicio. El tono es inspiracional y orientado al descubrimiento.',
+};
+
+const SocialMediaPlatformTab: React.FC<{
+  mode: ContentModeConfig;
+  modePrompts: Partial<Record<string, ModePromptConfig>>;
+  onChange: (key: string, config: ModePromptConfig) => void;
+}> = ({ mode, modePrompts, onChange }) => {
+  const [activePlatform, setActivePlatform] = useState<SocialPlatform | 'default'>('default');
+
+  const defaultKey = mode.id;
+  const platformKey = activePlatform === 'default' ? null : `social_media_${activePlatform}`;
+
+  const platformMode = activePlatform === 'default' ? mode : {
+    ...mode,
+    defaultPrompt: PLATFORM_DEFAULTS[activePlatform as SocialPlatform],
+  };
+
+  const configKey = platformKey ?? defaultKey;
+  const config = modePrompts[configKey];
+
+  return (
+    <div className="space-y-4">
+      {/* Platform sub-tabs */}
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="px-4 pt-3 pb-0 border-b border-gray-100">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Plataforma</p>
+          <div className="flex gap-1 overflow-x-auto pb-0 scrollbar-hide flex-wrap">
+            <button
+              onClick={() => setActivePlatform('default')}
+              className={`px-3 py-1.5 rounded-t-lg text-xs font-medium transition-colors whitespace-nowrap border-b-2 ${
+                activePlatform === 'default'
+                  ? 'border-purple-600 text-purple-700 bg-purple-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              🌐 Predeterminado
+            </button>
+            {SOCIAL_PLATFORMS.map(p => {
+              const hasCustom = modePrompts[`social_media_${p}`]?.useCustom;
+              return (
+                <button
+                  key={p}
+                  onClick={() => setActivePlatform(p)}
+                  className={`px-3 py-1.5 rounded-t-lg text-xs font-medium transition-colors whitespace-nowrap border-b-2 flex items-center gap-1 ${
+                    activePlatform === p
+                      ? 'border-purple-600 text-purple-700 bg-purple-50'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <span>{PLATFORM_ICON[p]}</span>
+                  <span>{p}</span>
+                  {hasCustom && <span className="w-1.5 h-1.5 rounded-full bg-purple-500 ml-0.5" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {activePlatform !== 'default' && (
+          <div className="px-4 py-2 bg-purple-50 text-xs text-purple-700">
+            Este prompt se usará <strong>automáticamente</strong> cuando el modo sea Redes Sociales y la plataforma seleccionada sea <strong>{activePlatform}</strong>.
+          </div>
+        )}
+      </div>
+
+      <ModeTab
+        mode={platformMode}
+        config={config}
+        onChange={cfg => onChange(configKey, cfg)}
+      />
+    </div>
+  );
+};
+
 // ─── Componente principal ────────────────────────────────────────────────────
 
 export const PromptConfig: React.FC<PromptConfigProps> = ({
@@ -325,6 +417,12 @@ export const PromptConfig: React.FC<PromptConfigProps> = ({
         <div className="max-w-3xl mx-auto space-y-6">
           {activeTabMode.id === 'ecommerce' ? (
             <EcommerceTab settings={settings} onSettingsChange={onSettingsChange} />
+          ) : activeTabMode.id === 'social_media' ? (
+            <SocialMediaPlatformTab
+              mode={activeTabMode}
+              modePrompts={modePrompts}
+              onChange={(key, config) => handleModePromptChange(key, config)}
+            />
           ) : (
             <ModeTab
               mode={activeTabMode}

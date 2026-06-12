@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { ArrowLeft, Plus, Edit2, Trash2, Globe, Hash, Building2, FileText, X, Check, Search, Upload, Download, Sparkles, Mic, Tag, AtSign, Languages } from 'lucide-react';
-import { Brand } from '../types';
+import { Brand, CustomerProfile } from '../types';
 import { Popup } from './Popup';
 import { usePopup } from '../hooks/usePopup';
 
@@ -22,14 +22,15 @@ type FormData = {
   socialHandle: string;
   logoUrl: string;
   description: string;
+  customerProfiles: import('../types').CustomerProfile[];
 };
 
 const TONES = [
-  { value: 'formal',      label: 'Formal' },
-  { value: 'casual',      label: 'Casual' },
-  { value: 'técnico',     label: 'Técnico' },
-  { value: 'emocional',   label: 'Emocional' },
-  { value: 'persuasivo',  label: 'Persuasivo' },
+  { value: 'formal', label: 'Formal' },
+  { value: 'casual', label: 'Casual' },
+  { value: 'técnico', label: 'Técnico' },
+  { value: 'emocional', label: 'Emocional' },
+  { value: 'persuasivo', label: 'Persuasivo' },
 ];
 
 const LANGUAGES = ['Español', 'Inglés', 'Portugués', 'Francés', 'Alemán', 'Italiano'];
@@ -37,6 +38,7 @@ const LANGUAGES = ['Español', 'Inglés', 'Portugués', 'Francés', 'Alemán', '
 const emptyForm = (): FormData => ({
   name: '', websiteUrl: '', keywords: [], hashtags: [],
   tone: '', industry: '', language: '', socialHandle: '', logoUrl: '', description: '',
+  customerProfiles: [],
 });
 
 const initials = (name: string) => name.trim().slice(0, 2).toUpperCase();
@@ -107,6 +109,112 @@ const KeywordsInput: React.FC<{
   );
 };
 
+// ─── Customer Profile Editor ──────────────────────────────────────────────────
+
+const CustomerProfileEditor: React.FC<{
+  profiles: CustomerProfile[];
+  onChange: (profiles: CustomerProfile[]) => void;
+}> = ({ profiles, onChange }) => {
+  const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [profileForm, setProfileForm] = useState<Omit<CustomerProfile, 'id'>>({
+    name: '', description: '', painPoints: [], desires: []
+  });
+
+  const resetInternal = () => {
+    setProfileForm({ name: '', description: '', painPoints: [], desires: [] });
+    setIsAdding(false);
+    setEditingId(null);
+  };
+
+  const saveProfile = () => {
+    if (!profileForm.name.trim()) return;
+    if (editingId) {
+      onChange(profiles.map(p => p.id === editingId ? { ...profileForm, id: editingId } : p));
+    } else {
+      onChange([...profiles, { ...profileForm, id: `profile_${Date.now()}` }]);
+    }
+    resetInternal();
+  };
+
+  const removeProfile = (id: string) => onChange(profiles.filter(p => p.id !== id));
+
+  const startEdit = (p: import('../types').CustomerProfile) => {
+    setProfileForm({ name: p.name, description: p.description, painPoints: p.painPoints, desires: p.desires });
+    setEditingId(p.id);
+    setIsAdding(true);
+  };
+
+  return (
+    <div className="space-y-3 bg-gray-50 border border-gray-200 rounded-xl p-4">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+          <AtSign className="w-4 h-4 text-pink-500" /> Perfiles de Cliente (Buyer Personas)
+        </h4>
+        {!isAdding && (
+          <button
+            type="button"
+            onClick={() => setIsAdding(true)}
+            className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" /> Agregar Perfil
+          </button>
+        )}
+      </div>
+
+      {isAdding ? (
+        <div className="bg-white border border-blue-100 rounded-lg p-3 space-y-3 shadow-sm">
+          <div>
+            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Nombre del Perfil</label>
+            <input
+              type="text"
+              value={profileForm.name}
+              onChange={e => setProfileForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="Ej: Emprendedor Tecnológico"
+              className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Descripción / Dolores</label>
+            <textarea
+              value={profileForm.description}
+              onChange={e => setProfileForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="Describe a este cliente, sus problemas y lo que busca..."
+              rows={2}
+              className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-1 focus:ring-blue-500 outline-none resize-none"
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <button type="button" onClick={resetInternal} className="px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 rounded">Cancelar</button>
+            <button type="button" onClick={saveProfile} className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded font-medium hover:bg-blue-700">
+              {editingId ? 'Actualizar' : 'Confirmar'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-2">
+          {profiles.length === 0 ? (
+            <p className="text-xs text-gray-400 italic text-center py-2">No has definido perfiles específicos para esta marca.</p>
+          ) : (
+            profiles.map(p => (
+              <div key={p.id} className="flex items-center justify-between bg-white px-3 py-2 border border-gray-200 rounded-lg group">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">{p.name}</p>
+                  <p className="text-[11px] text-gray-500 truncate">{p.description}</p>
+                </div>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button type="button" onClick={() => startEdit(p)} className="p-1 hover:bg-blue-50 text-blue-600 rounded"><Edit2 className="w-3.5 h-3.5" /></button>
+                  <button type="button" onClick={() => removeProfile(p.id)} className="p-1 hover:bg-red-50 text-red-500 rounded"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Panel ────────────────────────────────────────────────────────────────────
 
 export const BrandsPanel: React.FC<BrandsPanelProps> = ({ brands, onBrandsChange, onBack, onSuggestKeywords }) => {
@@ -121,9 +229,9 @@ export const BrandsPanel: React.FC<BrandsPanelProps> = ({ brands, onBrandsChange
 
   const filtered = search.trim()
     ? brands.filter(b =>
-        b.name.toLowerCase().includes(search.toLowerCase()) ||
-        b.keywords?.some(k => k.toLowerCase().includes(search.toLowerCase()))
-      )
+      b.name.toLowerCase().includes(search.toLowerCase()) ||
+      b.keywords?.some(k => k.toLowerCase().includes(search.toLowerCase()))
+    )
     : brands;
 
   const openCreate = () => { setForm(emptyForm()); setEditingId(null); setShowForm(true); };
@@ -140,6 +248,7 @@ export const BrandsPanel: React.FC<BrandsPanelProps> = ({ brands, onBrandsChange
       socialHandle: brand.socialHandle ?? '',
       logoUrl: brand.logoUrl ?? '',
       description: brand.description ?? '',
+      customerProfiles: brand.customerProfiles ?? [],
     });
     setEditingId(brand.id);
     setShowForm(true);
@@ -161,6 +270,7 @@ export const BrandsPanel: React.FC<BrandsPanelProps> = ({ brands, onBrandsChange
       socialHandle: form.socialHandle.trim() || undefined,
       logoUrl: form.logoUrl.trim() || undefined,
       description: form.description.trim() || undefined,
+      customerProfiles: form.customerProfiles.length > 0 ? form.customerProfiles : undefined,
       createdAt: editingId
         ? (brands.find(b => b.id === editingId)?.createdAt ?? new Date().toISOString())
         : new Date().toISOString(),
@@ -458,6 +568,14 @@ export const BrandsPanel: React.FC<BrandsPanelProps> = ({ brands, onBrandsChange
                     placeholder="Breve descripción, identidad, valores o audiencia de la marca…"
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  />
+                </div>
+
+                {/* Customer Profiles */}
+                <div className="col-span-2">
+                  <CustomerProfileEditor
+                    profiles={form.customerProfiles}
+                    onChange={profiles => setForm(f => ({ ...f, customerProfiles: profiles }))}
                   />
                 </div>
               </div>

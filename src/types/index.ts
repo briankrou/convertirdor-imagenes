@@ -46,6 +46,14 @@ export type ContentMode =
 
 export type AIProvider = 'openai' | 'anthropic' | 'google' | 'openrouter';
 
+export interface CustomerProfile {
+  id: string;
+  name: string;
+  description: string;
+  painPoints: string[];
+  desires: string[];
+}
+
 export interface Brand {
   id: string;
   name: string;
@@ -58,6 +66,7 @@ export interface Brand {
   socialHandle?: string;
   logoUrl?: string;
   description?: string;
+  customerProfiles?: CustomerProfile[];
   createdAt: string;
 }
 
@@ -84,6 +93,7 @@ export interface AIField {
   label: string;
   enabled: boolean;
   maxLength?: number;
+  applicableTypes?: string[]; // Si está presente, solo se muestra para estos tipos de publicación
 }
 
 export interface ContentModeConfig {

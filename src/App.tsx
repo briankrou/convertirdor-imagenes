@@ -18,7 +18,7 @@ import { ImageData, ImageDescription, Notification, AuthState, UserConversionSet
 import { ChatGPTService } from './services/chatgptService';
 import { databaseService } from './services/databaseService';
 import { authService } from './services/authService';
-import { CONTENT_MODES, getActiveContext } from './services/contentModes';
+import { CONTENT_MODES, getActiveContext, getEffectiveFields } from './services/contentModes';
 import { ContentModeSelector } from './components/ContentModeSelector';
 import { BrandsPanel } from './components/BrandsPanel';
 
@@ -76,10 +76,10 @@ function App() {
       // Verificar autenticación
       const auth = authService.getAuthState();
       setAuthState(auth);
-      
+
       if (auth.isAuthenticated && auth.currentUser) {
         const username = auth.currentUser.username;
-        
+
         const userConversionSettings = await databaseService.getUserConversionSettings(username);
         const userChatGPTSettings = await databaseService.getUserChatGPTSettings(username);
         const userPromptSettings = await databaseService.getUserPromptSettings(username);
@@ -104,7 +104,7 @@ function App() {
         const allModes = [...CONTENT_MODES, ...savedCustomModes];
         const savedMode = allModes.find(m => m.id === savedContentModeId) ?? CONTENT_MODES[0];
         setActiveContentMode(savedMode);
-        
+
         addNotification({
           type: 'success',
           title: 'Configuración cargada',
@@ -134,23 +134,23 @@ function App() {
       try {
         console.log('🚀 Inicializando aplicación...');
         setIsLoading(true);
-        
-        
+
+
         console.log('📊 Inicializando base de datos...');
         await databaseService.initialize();
         console.log('✅ Base de datos inicializada');
-        
+
         // Verificar autenticación
         console.log('🔐 Verificando autenticación...');
         const auth = authService.getAuthState();
         console.log('🔐 Estado de autenticación:', auth);
         setAuthState(auth);
-        
+
         if (auth.isAuthenticated && auth.currentUser) {
           console.log('👤 Usuario autenticado, cargando configuración...');
           await loadConfiguration();
         }
-        
+
         console.log('✅ Aplicación inicializada correctamente');
       } catch (error) {
         console.error('❌ Error initializing app:', error);
@@ -233,18 +233,18 @@ function App() {
       const ctx: Record<string, string> = { ...base, selectedBrandId: brand.id };
       const filled: string[] = [];
       const set = (k: string, v: string) => { ctx[k] = v; filled.push(k); };
-      if (brand.websiteUrl)       set('websiteUrl',        brand.websiteUrl);
-      if (brand.keywords?.length) set('keyword',           brand.keywords[0]);
-      if (brand.tone)             set('brandTone',         brand.tone);
-      if (brand.description)      set('brandDescription',  brand.description);
-      if (brand.industry)         set('brandIndustry',     brand.industry);
-      if (brand.language)         set('brandLanguage',     brand.language);
-      if (brand.hashtags?.length) set('brandHashtags',     brand.hashtags.join(' '));
-      if (brand.socialHandle)     set('brandSocialHandle', brand.socialHandle);
+      if (brand.websiteUrl) set('websiteUrl', brand.websiteUrl);
+      if (brand.keywords?.length) set('keyword', brand.keywords[0]);
+      if (brand.tone) set('brandTone', brand.tone);
+      if (brand.description) set('brandDescription', brand.description);
+      if (brand.industry) set('brandIndustry', brand.industry);
+      if (brand.language) set('brandLanguage', brand.language);
+      if (brand.hashtags?.length) set('brandHashtags', brand.hashtags.join(' '));
+      if (brand.socialHandle) set('brandSocialHandle', brand.socialHandle);
       if (brand.name) {
-        if (modeId === 'services')     set('companyName', brand.name);
-        if (modeId === 'social_media') set('brand',       brand.name);
-        if (modeId === 'catalog')      set('supplier',    brand.name);
+        if (modeId === 'services') set('companyName', brand.name);
+        if (modeId === 'social_media') set('brand', brand.name);
+        if (modeId === 'catalog') set('supplier', brand.name);
       }
       ctx['_brandFilledFields'] = filled.join(',');
       updated[modeId] = ctx;
@@ -297,7 +297,7 @@ function App() {
         };
         await databaseService.saveUserChatGPTSettings(authState.currentUser.username, defaultSettings);
         setChatGPTSettings(defaultSettings);
-        
+
         addNotification({
           type: 'success',
           title: 'Configuración limpiada',
@@ -349,7 +349,7 @@ function App() {
   const addNotification = useCallback((notification: Omit<Notification, 'id'>) => {
     const id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     setNotifications(prev => [...prev, { ...notification, id }]);
-    
+
     if (notification.type !== 'error') {
       setTimeout(() => {
         setNotifications(prev => prev.filter(n => n.id !== id));
@@ -365,7 +365,7 @@ function App() {
 
   const handleFilesSelected = useCallback((files: File[]) => {
     const imageFiles = files.filter(file => file.type.startsWith('image/'));
-    
+
     if (imageFiles.length === 0) {
       addNotification({
         type: 'error',
@@ -385,7 +385,7 @@ function App() {
     }));
 
     setImages(prev => [...prev, ...newImages]);
-    
+
     addNotification({
       type: 'success',
       title: 'Imágenes cargadas',
@@ -410,14 +410,14 @@ function App() {
       () => {
         // Limpiar todas las imágenes y liberar memoria
         images.forEach(image => URL.revokeObjectURL(image.url));
-        
+
         // Resetear estados relacionados con imágenes
         setImages([]);
         setImageDescriptions([]);
         setConvertedImages([]);
         setIsConverting(false);
         setIsGeneratingDescriptions(false);
-        
+
         // Resetear configuración de conversión a valores predeterminados
         const defaultConversionSettings: ConversionSettings = {
           format: 'png',
@@ -432,9 +432,9 @@ function App() {
             maintainAspectRatio: true
           }
         };
-        
+
         setSettings(defaultConversionSettings);
-        
+
         addNotification({
           type: 'info',
           title: 'Contenido y configuración limpiados',
@@ -502,7 +502,7 @@ function App() {
     setImageDescriptions([]);
     setConvertedImages([]);
     setIsGeneratingDescriptions(false);
-    
+
     // Cerrar sesión
     authService.logout();
     setAuthState({
@@ -511,7 +511,7 @@ function App() {
       isLoading: false
     });
     setCurrentPage('main');
-    
+
     addNotification({
       type: 'info',
       title: 'Sesión cerrada',
@@ -533,68 +533,68 @@ function App() {
       'Limpiar toda la configuración',
       '¿Estás seguro de que quieres limpiar toda la configuración? Esta acción no se puede deshacer y eliminará:\n\n• Todas las imágenes cargadas\n• Todas las descripciones generadas\n• Toda la configuración de conversión\n• Toda la configuración de ChatGPT\n• Toda la configuración de prompts',
       async () => {
-      try {
-        // Limpiar datos de la base de datos
-        await databaseService.clearAllData();
-        
-        // Limpiar todas las imágenes y liberar memoria
-        images.forEach(image => URL.revokeObjectURL(image.url));
-        
-        // Resetear todos los estados a valores predeterminados
-        setImages([]);
-        setImageDescriptions([]);
-        setConvertedImages([]);
-        setIsConverting(false);
-        setIsGeneratingDescriptions(false);
-        
-        // Resetear configuración de conversión
-        const defaultConversionSettings: ConversionSettings = {
-          format: 'png',
-          quality: 90,
-          imageNamePrefix: 'imagen',
-          sdkSuffix: 'A5455',
-          productDescription: '',
-          resize: {
-            enabled: false,
-            width: 1920,
-            height: 1080,
-            maintainAspectRatio: true
-          }
-        };
-        
-        // Resetear configuración de ChatGPT
-        const defaultChatGPTSettings: ChatGPTSettings = {
-          apiKey: '',
-          model: 'gpt-4o',
-          enabled: false
-        };
-        
-        // Resetear configuración de prompts
-        const defaultPromptSettings: PromptSettings = {
-          titlePrompt: "Genera un título atractivo y descriptivo para esta imagen (máximo 60 caracteres). El título debe ser claro, conciso y que capture la esencia del producto mostrado.",
-          descriptionPrompt: "Describe detalladamente lo que ves en esta imagen. Incluye características visuales, colores, materiales, estilo y cualquier detalle relevante del producto (2-3 oraciones).",
-          captionPrompt: "Crea una leyenda corta y atractiva para esta imagen que resalte las características principales del producto (1 oración).",
-          altTextPrompt: "Genera un texto alternativo descriptivo para accesibilidad que describa claramente el contenido de la imagen (máximo 125 caracteres).",
-          useCustomPrompts: false
-        };
-        
-        setSettings(defaultConversionSettings);
-        setChatGPTSettings(defaultChatGPTSettings);
-        setPromptSettings(defaultPromptSettings);
-        
-        addNotification({
-          type: 'success',
-          title: 'Aplicación limpiada completamente',
-          message: 'Se eliminaron todas las imágenes, descripciones y se restauró la configuración predeterminada'
-        });
-      } catch (error) {
-        console.error('Error clearing configuration:', error);
-        addNotification({
-          type: 'error',
-          title: 'Error',
-          message: 'No se pudo limpiar la configuración'
-        });
-      }
+        try {
+          // Limpiar datos de la base de datos
+          await databaseService.clearAllData();
+
+          // Limpiar todas las imágenes y liberar memoria
+          images.forEach(image => URL.revokeObjectURL(image.url));
+
+          // Resetear todos los estados a valores predeterminados
+          setImages([]);
+          setImageDescriptions([]);
+          setConvertedImages([]);
+          setIsConverting(false);
+          setIsGeneratingDescriptions(false);
+
+          // Resetear configuración de conversión
+          const defaultConversionSettings: ConversionSettings = {
+            format: 'png',
+            quality: 90,
+            imageNamePrefix: 'imagen',
+            sdkSuffix: 'A5455',
+            productDescription: '',
+            resize: {
+              enabled: false,
+              width: 1920,
+              height: 1080,
+              maintainAspectRatio: true
+            }
+          };
+
+          // Resetear configuración de ChatGPT
+          const defaultChatGPTSettings: ChatGPTSettings = {
+            apiKey: '',
+            model: 'gpt-4o',
+            enabled: false
+          };
+
+          // Resetear configuración de prompts
+          const defaultPromptSettings: PromptSettings = {
+            titlePrompt: "Genera un título atractivo y descriptivo para esta imagen (máximo 60 caracteres). El título debe ser claro, conciso y que capture la esencia del producto mostrado.",
+            descriptionPrompt: "Describe detalladamente lo que ves en esta imagen. Incluye características visuales, colores, materiales, estilo y cualquier detalle relevante del producto (2-3 oraciones).",
+            captionPrompt: "Crea una leyenda corta y atractiva para esta imagen que resalte las características principales del producto (1 oración).",
+            altTextPrompt: "Genera un texto alternativo descriptivo para accesibilidad que describa claramente el contenido de la imagen (máximo 125 caracteres).",
+            useCustomPrompts: false
+          };
+
+          setSettings(defaultConversionSettings);
+          setChatGPTSettings(defaultChatGPTSettings);
+          setPromptSettings(defaultPromptSettings);
+
+          addNotification({
+            type: 'success',
+            title: 'Aplicación limpiada completamente',
+            message: 'Se eliminaron todas las imágenes, descripciones y se restauró la configuración predeterminada'
+          });
+        } catch (error) {
+          console.error('Error clearing configuration:', error);
+          addNotification({
+            type: 'error',
+            title: 'Error',
+            message: 'No se pudo limpiar la configuración'
+          });
+        }
       },
       {
         confirmText: 'Limpiar todo',
@@ -632,7 +632,7 @@ function App() {
       }
 
       setConvertedImages(newConvertedImages);
-      
+
       addNotification({
         type: 'success',
         title: 'Conversión completada',
@@ -669,7 +669,7 @@ function App() {
       // Convertir imágenes y generar descripciones
       for (let i = 0; i < images.length; i++) {
         const image = images[i];
-        
+
         // Convertir imagen
         const convertedBlob = await convertSingleImageToBlob(image, settings);
         const filename = generateFileName(image.name, settings, i + 1);
@@ -681,6 +681,11 @@ function App() {
             const chatGPTService = new ChatGPTService(chatGPTSettings, aiProviders);
             const activeModeKey = activeContentMode.id === 'custom' ? activeContentMode.label : activeContentMode.id;
             const aiContext = getActiveContext(activeContentMode.id, perModeContext, settings.productDescription);
+            const socialPlatform = activeContentMode.id === 'social_media' ? perModeContext['social_media']?.platform : undefined;
+            const platformPromptKey = socialPlatform ? `social_media_${socialPlatform}` : null;
+            const effectivePrompt = (platformPromptKey && modePrompts[platformPromptKey]?.useCustom)
+              ? modePrompts[platformPromptKey]
+              : modePrompts[activeModeKey];
             const response = await chatGPTService.generateImageDescription(
               image,
               aiContext,
@@ -688,7 +693,7 @@ function App() {
               promptSettings,
               filename,
               activeContentMode,
-              modePrompts[activeModeKey],
+              effectivePrompt,
               modeModels[activeContentMode.id]
             );
 
@@ -707,7 +712,7 @@ function App() {
               fieldLabels: response.fieldLabels,
               contentMode: activeContentMode.id,
             });
-            
+
             addNotification({
               type: 'info',
               title: 'Descripción generada',
@@ -739,7 +744,7 @@ function App() {
 
       setConvertedImages(newConvertedImages);
       setImageDescriptions(newDescriptions);
-      
+
       addNotification({
         type: 'success',
         title: 'Conversión completada',
@@ -769,14 +774,14 @@ function App() {
       img.onload = () => {
         let targetWidth = img.naturalWidth;
         let targetHeight = img.naturalHeight;
-        
+
         // Aplicar redimensionamiento si está habilitado
         if (settings.resize && settings.resize.enabled) {
           if (settings.resize.maintainAspectRatio) {
             // Mantener proporción de aspecto
             const aspectRatio = img.naturalWidth / img.naturalHeight;
             const targetAspectRatio = settings.resize.width / settings.resize.height;
-            
+
             if (aspectRatio > targetAspectRatio) {
               // La imagen es más ancha, ajustar por ancho
               targetWidth = settings.resize.width;
@@ -792,23 +797,23 @@ function App() {
             targetHeight = settings.resize.height;
           }
         }
-        
+
         canvas.width = targetWidth;
         canvas.height = targetHeight;
-        
+
         // Clear canvas with white background for formats that don't support transparency
         if (settings.format === 'jpeg' || settings.format === 'bmp') {
           ctx!.fillStyle = 'white';
           ctx!.fillRect(0, 0, canvas.width, canvas.height);
         }
-        
+
         // Dibujar la imagen redimensionada
         ctx!.drawImage(img, 0, 0, targetWidth, targetHeight);
-        
+
         // Convert to the desired format
         const mimeType = getMimeType(settings.format);
         const quality = shouldUseQuality(settings.format) ? settings.quality / 100 : undefined;
-        
+
         canvas.toBlob((blob) => {
           if (blob) {
             resolve(blob);
@@ -826,7 +831,7 @@ function App() {
   // Función auxiliar para generar nombres de archivo
   const generateFileName = (originalName: string, settings: ConversionSettings, imageNumber?: number): string => {
     const { imageNamePrefix, sdkSuffix, format } = settings;
-    
+
     if (imageNumber !== undefined) {
       // Para múltiples imágenes, usar prefijo + número secuencial + SDK
       return `${imageNamePrefix}_${imageNumber.toString().padStart(2, '0')}_${sdkSuffix}.${format}`;
@@ -882,9 +887,14 @@ function App() {
         try {
           // Generar nombre de archivo para la descripción
           const filename = generateFileName(image.name, settings, i + 1);
-          
+
           const activeModeKeyGen = activeContentMode.id === 'custom' ? activeContentMode.label : activeContentMode.id;
           const aiContextGen = getActiveContext(activeContentMode.id, perModeContext, settings.productDescription);
+          const socialPlatformGen = activeContentMode.id === 'social_media' ? perModeContext['social_media']?.platform : undefined;
+          const platformPromptKeyGen = socialPlatformGen ? `social_media_${socialPlatformGen}` : null;
+          const effectivePromptGen = (platformPromptKeyGen && modePrompts[platformPromptKeyGen]?.useCustom)
+            ? modePrompts[platformPromptKeyGen]
+            : modePrompts[activeModeKeyGen];
           const response = await chatGPTService.generateImageDescription(
             image,
             aiContextGen,
@@ -892,7 +902,8 @@ function App() {
             promptSettings,
             filename,
             activeContentMode,
-            modePrompts[activeModeKeyGen]
+            effectivePromptGen,
+            modeModels[activeContentMode.id]
           );
 
           newDescriptions.push({
@@ -928,7 +939,7 @@ function App() {
       }
 
       setImageDescriptions(newDescriptions);
-      
+
       if (newDescriptions.length > 0) {
         addNotification({
           type: 'success',
@@ -954,22 +965,22 @@ function App() {
     const lines = fullResponse.split('\n');
     let modifiedResponse = '';
     let foundFileLine = false;
-    
+
     for (const line of lines) {
       modifiedResponse += line + '\n';
-      
+
       // Si encontramos la línea "Archivo:", agregar "Nuevo nombre:" en la siguiente línea
       if (line.includes('Archivo:') && !foundFileLine) {
         modifiedResponse += `Nuevo nombre: ${newFileName}\n`;
         foundFileLine = true;
       }
     }
-    
+
     // Si no se encontró la línea "Archivo:", agregar el nuevo nombre al principio
     if (!foundFileLine) {
       modifiedResponse = `Nuevo nombre: ${newFileName}\n` + modifiedResponse;
     }
-    
+
     return modifiedResponse;
   };
 
@@ -986,8 +997,8 @@ function App() {
     try {
       const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
       const filename = `descripciones-imagenes-${timestamp}.txt`;
-      
-      const content = generateMetadataFile(imageDescriptions);
+
+      const content = generateMetadataFile(imageDescriptions, activeContentMode.id, perModeContext);
 
       const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
@@ -1060,7 +1071,7 @@ function App() {
   }, [convertedImages, settings, addNotification]);
 
   // Función para generar archivo de metadatos
-  const generateMetadataFile = (descriptions: ImageDescription[]): string => {
+  const generateMetadataFile = (descriptions: ImageDescription[], modeId?: ContentMode, fullPerModeContext?: PerModeContext): string => {
     let content = '';
 
     descriptions.forEach((desc, index) => {
@@ -1070,8 +1081,20 @@ function App() {
       content += `Nuevo nombre: ${desc.newFileName}\n`;
 
       if (desc.fields && Object.keys(desc.fields).length > 0) {
-        // Modo dinámico: usar etiquetas reales de los campos
-        Object.entries(desc.fields).forEach(([key, value]) => {
+        // Usar getEffectiveFields si tenemos el modo y contexto para filtrar en la exportación también
+        let fieldsToExport = Object.entries(desc.fields);
+
+        if (modeId && fullPerModeContext) {
+          const config = CONTENT_MODES.find((m: any) => m.id === modeId);
+          if (config) {
+            const context = fullPerModeContext[modeId];
+            const effectiveFields = getEffectiveFields(config, context);
+            const effectiveKeys = new Set(effectiveFields.map((f: any) => f.key));
+            fieldsToExport = fieldsToExport.filter(([key]) => effectiveKeys.has(key));
+          }
+        }
+
+        fieldsToExport.forEach(([key, value]) => {
           const label = desc.fieldLabels?.[key] ?? key;
           content += `${label}: ${value}\n`;
         });
@@ -1093,7 +1116,7 @@ function App() {
   const downloadAsZip = async (files: { blob: Blob; filename: string }[], settings: ConversionSettings) => {
     const JSZip = (await import('jszip')).default;
     const zip = new JSZip();
-    
+
     // Agregar cada archivo de imagen al ZIP
     files.forEach(({ blob, filename }) => {
       zip.file(filename, blob);
@@ -1101,19 +1124,19 @@ function App() {
 
     // Agregar archivo de metadatos si hay descripciones
     if (imageDescriptions.length > 0) {
-      const metadataContent = generateMetadataFile(imageDescriptions);
+      const metadataContent = generateMetadataFile(imageDescriptions, activeContentMode.id, perModeContext);
       const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
       const metadataFilename = `metadatos-${settings.sdkSuffix}-${timestamp}.txt`;
       zip.file(metadataFilename, metadataContent);
     }
-    
+
     // Generar el ZIP
     const zipBlob = await zip.generateAsync({ type: 'blob' });
-    
+
     // Descargar el ZIP
     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
     const zipFilename = `imagenes-convertidas-${settings.sdkSuffix}-${settings.format}-${timestamp}.zip`;
-    
+
     const url = URL.createObjectURL(zipBlob);
     const link = document.createElement('a');
     link.href = url;
@@ -1124,7 +1147,7 @@ function App() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    const message = imageDescriptions.length > 0 
+    const message = imageDescriptions.length > 0
       ? `Se descargó ${zipFilename} con ${files.length} imágenes y archivo de metadatos`
       : `Se descargó ${zipFilename} con ${files.length} imágenes`;
 
@@ -1254,8 +1277,8 @@ function App() {
         onLogout={handleLogout}
         currentUser={authState.currentUser}
       />
-      
-      
+
+
       <div className="flex-1 flex overflow-hidden">
         <Sidebar
           settings={settings}
@@ -1315,7 +1338,7 @@ function App() {
           )}
         </main>
       </div>
-      
+
       <NotificationContainer
         notifications={notifications}
         onRemove={removeNotification}

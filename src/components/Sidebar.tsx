@@ -3,7 +3,8 @@ import {
   Download, Trash2, Sliders, Tag, Hash, Brain, FileText,
   Maximize2, Minimize2, Package, ShoppingBag, Briefcase,
   Image, Share2, Archive, Settings, Users, Globe, Building2,
-  Layers, AtSign, Barcode, Plus, ChevronsRight
+  Layers, AtSign, Barcode, Plus, ChevronsRight, MapPin, MessageCircle,
+  Target, Megaphone, Gift, Phone
 } from 'lucide-react';
 import { ConversionSettings, ContentModeConfig, Brand } from '../types';
 
@@ -203,22 +204,22 @@ const ResizeSection: React.FC<{
 const BRAND_FILLED_KEY = '_brandFilledFields';
 
 const buildBrandContext = (brand: Brand, modeId: string, base: Record<string, string>): Record<string, string> => {
-  const ctx = { ...base, selectedBrandId: brand.id };
+  const ctx: Record<string, string> = { ...base, selectedBrandId: brand.id };
   const filled: string[] = [];
   const set = (k: string, v: string) => { ctx[k] = v; filled.push(k); };
 
-  if (brand.websiteUrl)       set('websiteUrl',        brand.websiteUrl);
-  if (brand.keywords?.length) set('keyword',           brand.keywords[0]);
-  if (brand.tone)             set('brandTone',         brand.tone);
-  if (brand.description)      set('brandDescription',  brand.description);
-  if (brand.industry)         set('brandIndustry',     brand.industry);
-  if (brand.language)         set('brandLanguage',     brand.language);
-  if (brand.hashtags?.length) set('brandHashtags',     brand.hashtags.join(' '));
-  if (brand.socialHandle)     set('brandSocialHandle', brand.socialHandle);
+  if (brand.websiteUrl) set('websiteUrl', brand.websiteUrl);
+  if (brand.keywords?.length) set('keyword', brand.keywords[0]);
+  if (brand.tone) set('brandTone', brand.tone);
+  if (brand.description) set('brandDescription', brand.description);
+  if (brand.industry) set('brandIndustry', brand.industry);
+  if (brand.language) set('brandLanguage', brand.language);
+  if (brand.hashtags?.length) set('brandHashtags', brand.hashtags.join(' '));
+  if (brand.socialHandle) set('brandSocialHandle', brand.socialHandle);
   if (brand.name) {
-    if (modeId === 'services')     set('companyName', brand.name);
-    if (modeId === 'social_media') set('brand',       brand.name);
-    if (modeId === 'catalog')      set('supplier',    brand.name);
+    if (modeId === 'services') set('companyName', brand.name);
+    if (modeId === 'social_media') set('brand', brand.name);
+    if (modeId === 'catalog') set('supplier', brand.name);
   }
   ctx[BRAND_FILLED_KEY] = filled.join(',');
   return ctx;
@@ -236,6 +237,50 @@ const clearBrandContext = (ctx: Record<string, string>): Record<string, string> 
 const isBrandField = (ctx: Record<string, string>, field: string) =>
   (ctx[BRAND_FILLED_KEY] ?? '').split(',').includes(field);
 
+// ─── Profile Selector ─────────────────────────────────────────────────────────
+
+interface ProfileSelectorProps {
+  brand: Brand;
+  ctx: Record<string, string>;
+  onChange: (c: Record<string, string>) => void;
+}
+
+const ProfileSelector: React.FC<ProfileSelectorProps> = ({ brand, ctx, onChange }) => {
+  const profiles = brand.customerProfiles ?? [];
+  if (profiles.length === 0) return null;
+
+  const applyProfile = (profileId: string) => {
+    const updated = { ...ctx };
+    if (!profileId) {
+      delete updated.selectedProfileId;
+      delete updated.audience;
+      delete updated.target_audience;
+    } else {
+      const p = profiles.find(p => p.id === profileId);
+      if (p) {
+        updated.selectedProfileId = profileId;
+        updated.audience = p.name;
+        updated.target_audience = `${p.name}: ${p.description}`;
+      }
+    }
+    onChange(updated);
+  };
+
+  return (
+    <div className="flex items-center gap-2 px-2.5 py-1.5 bg-pink-50 border border-pink-100 rounded-lg ml-4">
+      <AtSign className="w-3.5 h-3.5 text-pink-400 flex-shrink-0" />
+      <select
+        value={ctx.selectedProfileId ?? ''}
+        onChange={e => applyProfile(e.target.value)}
+        className="flex-1 text-xs bg-transparent border-0 focus:ring-0 text-gray-700 min-w-0"
+      >
+        <option value="">— Perfil de cliente (Avatar) —</option>
+        {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+      </select>
+    </div>
+  );
+};
+
 interface BrandSelectorProps {
   brands: Brand[];
   ctx: Record<string, string>;
@@ -252,7 +297,10 @@ const BrandSelector: React.FC<BrandSelectorProps> = ({ brands, ctx, onChange, mo
     if (!brandId) { onChange(clearBrandContext(ctx)); return; }
     const brand = brands.find(b => b.id === brandId);
     if (!brand) return;
-    onChange(buildBrandContext(brand, modeId, ctx));
+    const brandCtx = buildBrandContext(brand, modeId, ctx);
+    // Limpiar perfil previo si pertenece a otra marca
+    delete brandCtx.selectedProfileId;
+    onChange(brandCtx);
   };
 
   return (
@@ -276,6 +324,10 @@ const BrandSelector: React.FC<BrandSelectorProps> = ({ brands, ctx, onChange, mo
         </button>
       </div>
 
+      {selectedBrand && (
+        <ProfileSelector brand={selectedBrand} ctx={ctx} onChange={onChange} />
+      )}
+
       {/* Apply to all modes */}
       {selectedBrand && onApplyToAll && (
         <button
@@ -291,7 +343,7 @@ const BrandSelector: React.FC<BrandSelectorProps> = ({ brands, ctx, onChange, mo
       {/* Tone + industry summary */}
       {selectedBrand && (selectedBrand.tone || selectedBrand.industry || selectedBrand.language) && (
         <div className="px-2.5 py-1.5 bg-indigo-50 border border-indigo-100 rounded-lg flex flex-wrap gap-x-3 gap-y-0.5">
-          {selectedBrand.tone     && <span className="text-xs text-indigo-600"><span className="text-indigo-400">Tono:</span> {selectedBrand.tone}</span>}
+          {selectedBrand.tone && <span className="text-xs text-indigo-600"><span className="text-indigo-400">Tono:</span> {selectedBrand.tone}</span>}
           {selectedBrand.industry && <span className="text-xs text-indigo-600"><span className="text-indigo-400">Industria:</span> {selectedBrand.industry}</span>}
           {selectedBrand.language && <span className="text-xs text-indigo-600"><span className="text-indigo-400">Idioma:</span> {selectedBrand.language}</span>}
         </div>
@@ -306,9 +358,8 @@ const BrandSelector: React.FC<BrandSelectorProps> = ({ brands, ctx, onChange, mo
               <button
                 key={kw}
                 onClick={() => onChange({ ...ctx, keyword: kw })}
-                className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors ${
-                  ctx.keyword === kw ? 'bg-indigo-600 text-white' : 'bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-100'
-                }`}
+                className={`px-2 py-0.5 rounded-full text-xs font-medium transition-colors ${ctx.keyword === kw ? 'bg-indigo-600 text-white' : 'bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-100'
+                  }`}
               >
                 {kw}
               </button>
@@ -391,36 +442,185 @@ const GeneralContext: React.FC<{ ctx: Record<string, string>; onChange: (c: Reco
 
 // ─── Contexto Redes Sociales ──────────────────────────────────────────────────
 
-const PLATFORMS = ['Instagram', 'TikTok', 'Twitter / X', 'LinkedIn', 'Facebook', 'Pinterest', 'General'];
-const TONE_OPTIONS_SOCIAL = ['Casual', 'Inspirador', 'Informativo', 'Humorístico', 'Profesional', 'Emotivo'];
+const PLATFORMS = ['Instagram', 'TikTok', 'Twitter / X', 'LinkedIn', 'Facebook', 'YouTube', 'Pinterest', 'General'];
+const TONE_OPTIONS_SOCIAL = ['Casual', 'Inspirador', 'Informativo', 'Humorístico', 'Profesional', 'Emotivo', 'Urgente'];
 const HASHTAG_LANGS = ['Español', 'Inglés', 'Ambos'];
+const PUBLICATION_TYPES = ['Feed', 'Stories / Reels', 'Anuncio (Ad)', 'Carousel'];
+const AD_OBJECTIVES = ['Awareness (Reconocimiento)', 'Tráfico', 'Conversión / Ventas', 'Engagement'];
+const CTA_PLACEMENTS = [
+  { value: 'in_caption', label: 'En el caption' },
+  { value: 'first_comment', label: 'En el primer comentario' },
+  { value: 'none', label: 'Ninguno' },
+];
 
-const SocialMediaContext: React.FC<{ ctx: Record<string, string>; onChange: (c: Record<string, string>) => void }> = ({ ctx, onChange }) => {
+// Presets de dimensiones por plataforma + tipo de publicación
+const DIMENSION_PRESETS: Record<string, Record<string, { width: number; height: number }>> = {
+  'Instagram': {
+    'Feed': { width: 1080, height: 1080 },
+    'Stories / Reels': { width: 1080, height: 1920 },
+    'Anuncio (Ad)': { width: 1080, height: 1080 },
+    'Carousel': { width: 1080, height: 1080 },
+  },
+  'Facebook': {
+    'Feed': { width: 1200, height: 630 },
+    'Stories / Reels': { width: 1080, height: 1920 },
+    'Anuncio (Ad)': { width: 1200, height: 628 },
+    'Carousel': { width: 1080, height: 1080 },
+  },
+  'TikTok': {
+    'Feed': { width: 1080, height: 1920 },
+    'Stories / Reels': { width: 1080, height: 1920 },
+    'Anuncio (Ad)': { width: 1080, height: 1920 },
+    'Carousel': { width: 1080, height: 1920 },
+  },
+  'Twitter / X': {
+    'Feed': { width: 1600, height: 900 },
+    'Anuncio (Ad)': { width: 1600, height: 900 },
+  },
+  'LinkedIn': {
+    'Feed': { width: 1200, height: 627 },
+    'Anuncio (Ad)': { width: 1200, height: 627 },
+    'Carousel': { width: 1080, height: 1080 },
+  },
+  'YouTube': {
+    'Feed': { width: 1280, height: 720 },
+    'Anuncio (Ad)': { width: 1280, height: 720 },
+    'Stories / Reels': { width: 1080, height: 1920 },
+  },
+  'Pinterest': {
+    'Feed': { width: 1000, height: 1500 },
+    'Anuncio (Ad)': { width: 1000, height: 1500 },
+  },
+};
+
+interface SocialMediaContextProps {
+  ctx: Record<string, string>;
+  onChange: (c: Record<string, string>) => void;
+  settings: ConversionSettings;
+  onSettingsChange: (s: ConversionSettings) => void;
+}
+
+const SocialMediaContext: React.FC<SocialMediaContextProps> = ({ ctx, onChange, settings, onSettingsChange }) => {
   const set = (key: string, val: string) => onChange({ ...ctx, [key]: val });
+
+  const applyDimensionPreset = (platform: string, pubType: string) => {
+    const preset = DIMENSION_PRESETS[platform]?.[pubType];
+    if (preset) {
+      onSettingsChange({
+        ...settings,
+        resize: { ...settings.resize, enabled: true, width: preset.width, height: preset.height, maintainAspectRatio: false },
+      });
+    }
+  };
+
+  const handlePlatformChange = (val: string) => {
+    set('platform', val);
+    if (val && ctx.publicationType) applyDimensionPreset(val, ctx.publicationType);
+  };
+
+  const handlePublicationTypeChange = (val: string) => {
+    set('publicationType', val);
+    if (ctx.platform && val) applyDimensionPreset(ctx.platform, val);
+  };
+
+  // Mostrar preset activo
+  const activePreset = DIMENSION_PRESETS[ctx.platform ?? '']?.[ctx.publicationType ?? ''];
+
   return (
     <div className="space-y-3">
       <SectionTitle icon={<Share2 className="w-4 h-4" />} title="Contexto de redes sociales" />
-      <Field label="Plataforma objetivo">
-        <select value={ctx.platform ?? ''} onChange={e => set('platform', e.target.value)} className={selectCls}>
+
+      {/* Plataforma */}
+      <Field label={<><Megaphone className="w-3.5 h-3.5 mr-1.5" />Plataforma objetivo</>}>
+        <select value={ctx.platform ?? ''} onChange={e => handlePlatformChange(e.target.value)} className={selectCls}>
           <option value="">— Sin especificar —</option>
           {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
       </Field>
+
+      {/* Tipo de publicación */}
+      <Field label={<><Layers className="w-3.5 h-3.5 mr-1.5" />Tipo de publicación</>}>
+        <select value={ctx.publicationType ?? ''} onChange={e => handlePublicationTypeChange(e.target.value)} className={selectCls}>
+          <option value="">— Sin especificar —</option>
+          {PUBLICATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+      </Field>
+
+      {/* Preset de dimensiones info */}
+      {activePreset && (
+        <div className="px-2.5 py-1.5 bg-blue-50 border border-blue-100 rounded-lg flex items-center gap-2">
+          <Maximize2 className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+          <span className="text-xs text-blue-600">
+            Dimensiones auto: <span className="font-semibold">{activePreset.width}×{activePreset.height}px</span>
+          </span>
+        </div>
+      )}
+
+      {/* Tip Pro para Anuncios */}
+      {ctx.publicationType === 'Anuncio (Ad)' && (
+        <div className="px-2.5 py-2 bg-amber-50 border border-amber-100 rounded-lg">
+          <div className="flex items-center gap-1.5 text-amber-700 mb-1">
+            <Brain className="w-3.5 h-3.5" />
+            <span className="text-xs font-bold uppercase tracking-wider">Tip Pro</span>
+          </div>
+          <p className="text-[11px] leading-relaxed text-amber-600 italic">
+            "En anuncios de pago, la IA omitirá hashtags para evitar distracciones y maximizar la conversión."
+          </p>
+        </div>
+      )}
+
+      {/* Objetivo del anuncio */}
+      <Field label={<><Target className="w-3.5 h-3.5 mr-1.5" />Objetivo del anuncio</>}>
+        <select value={ctx.adObjective ?? ''} onChange={e => set('adObjective', e.target.value)} className={selectCls}>
+          <option value="">— Sin especificar —</option>
+          {AD_OBJECTIVES.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      </Field>
+
+      {/* Tono */}
       <Field label="Tono del caption">
         <select value={ctx.tone ?? ''} onChange={e => set('tone', e.target.value)} className={selectCls}>
           <option value="">— Sin especificar —</option>
           {TONE_OPTIONS_SOCIAL.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
       </Field>
+
+      {/* Colocación del CTA */}
+      <Field label={<><MessageCircle className="w-3.5 h-3.5 mr-1.5" />Colocación del CTA</>} hint="Dónde aparecerá la llamada a la acción">
+        <select value={ctx.ctaPlacement ?? 'in_caption'} onChange={e => set('ctaPlacement', e.target.value)} className={selectCls}>
+          {CTA_PLACEMENTS.map(cp => <option key={cp.value} value={cp.value}>{cp.label}</option>)}
+        </select>
+      </Field>
+
+      {/* Oferta / Promoción */}
+      <Field label={<><Gift className="w-3.5 h-3.5 mr-1.5" />Oferta / Promoción</>} hint="La IA la integrará en el contenido">
+        <input type="text" value={ctx.offer ?? ''} onChange={e => set('offer', e.target.value)} placeholder="Ej: 20% descuento este mes, Auditoría gratis…" className={inputCls} />
+      </Field>
+
+      {/* Ubicación */}
+      <Field label={<><MapPin className="w-3.5 h-3.5 mr-1.5" />Ubicación</>} hint="Para hashtags y segmentación local">
+        <input type="text" value={ctx.location ?? ''} onChange={e => set('location', e.target.value)} placeholder="Ej: Bogotá, Colombia" className={inputCls} />
+      </Field>
+
+      {/* Contacto / Enlace */}
+      <Field label={<><Phone className="w-3.5 h-3.5 mr-1.5" />Contacto / Enlace</>} hint="URL, WhatsApp o teléfono para el CTA">
+        <input type="text" value={ctx.contactInfo ?? ''} onChange={e => set('contactInfo', e.target.value)} placeholder="Ej: wa.me/573001234567, www.marca.com" className={inputCls} />
+      </Field>
+
+      {/* Idioma de hashtags */}
       <Field label={<><AtSign className="w-3.5 h-3.5 mr-1.5" />Idioma de hashtags</>}>
         <select value={ctx.hashtagLanguage ?? ''} onChange={e => set('hashtagLanguage', e.target.value)} className={selectCls}>
           <option value="">— Sin especificar —</option>
           {HASHTAG_LANGS.map(l => <option key={l} value={l}>{l}</option>)}
         </select>
       </Field>
-      <Field label={<><Building2 className="w-3.5 h-3.5 mr-1.5" />Marca / Perfil</>} hint="Para personalizar el estilo">
+
+      {/* Marca / Perfil */}
+      <Field label={<><Building2 className="w-3.5 h-3.5 mr-1.5" />Marca / Perfil<BrandDot ctx={ctx} field="brand" /></>} hint="Para personalizar el estilo">
         <input type="text" value={ctx.brand ?? ''} onChange={e => set('brand', e.target.value)} placeholder="Ej: @mimarca, Nike, Zara…" className={inputCls} />
       </Field>
+
+      <KeywordField ctx={ctx} onChange={onChange} />
       <WebsiteField ctx={ctx} onChange={onChange} />
     </div>
   );
@@ -497,12 +697,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const renderModeContext = () => {
     switch (activeMode.id) {
-      case 'ecommerce':    return <EcommerceContext  ctx={modeContext} onChange={onModeContextChange} />;
-      case 'services':     return <ServicesContext   ctx={modeContext} onChange={onModeContextChange} />;
-      case 'general':      return <GeneralContext    ctx={modeContext} onChange={onModeContextChange} />;
-      case 'social_media': return <SocialMediaContext ctx={modeContext} onChange={onModeContextChange} />;
-      case 'catalog':      return <CatalogContext    ctx={modeContext} onChange={onModeContextChange} />;
-      default:             return <CustomContext     ctx={modeContext} onChange={onModeContextChange} />;
+      case 'ecommerce': return <EcommerceContext ctx={modeContext} onChange={onModeContextChange} />;
+      case 'services': return <ServicesContext ctx={modeContext} onChange={onModeContextChange} />;
+      case 'general': return <GeneralContext ctx={modeContext} onChange={onModeContextChange} />;
+      case 'social_media': return <SocialMediaContext ctx={modeContext} onChange={onModeContextChange} settings={settings} onSettingsChange={onSettingsChange} />;
+      case 'catalog': return <CatalogContext ctx={modeContext} onChange={onModeContextChange} />;
+      default: return <CustomContext ctx={modeContext} onChange={onModeContextChange} />;
     }
   };
 
@@ -531,7 +731,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               ctx={modeContext}
               onChange={onModeContextChange}
               modeId={activeMode.id}
-              onManage={onManageBrands ?? (() => {})}
+              onManage={onManageBrands ?? (() => { })}
               onApplyToAll={onApplyBrandToAllModes}
             />
           ) : (
